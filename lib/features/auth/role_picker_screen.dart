@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/app_info.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/models.dart';
 import '../../core/supabase_config.dart';
@@ -37,6 +38,14 @@ class RolePickerScreen extends StatelessWidget {
                   selected: LanguageService.code.value == 'tw',
                   onSelected: (_) => LanguageService.set('tw')),
             ]),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.help_outline),
+              label: const Text('Help & Feedback'),
+              onPressed: () => context.go('/help'),
+            ),
+            const SizedBox(height: 16),
+            const Center(child: Text(appBuildLabel, style: TextStyle(color: Colors.grey, fontSize: 12))),
             const SizedBox(height: 24),
             Card(child: ListTile(
               leading: const Icon(Icons.cloud_outlined),
