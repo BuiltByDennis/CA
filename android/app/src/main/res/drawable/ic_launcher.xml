@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App icon as a layer-list (brand green + QR glyph). Text-only on purpose:
+     the PNG mipmaps were never in the repo, which broke resource linking in
+     CI. When the final brand icon is ready, upload real PNGs to the
+     mipmap-* folders and point the manifest back to @mipmap/ic_launcher. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#14532D" />
+        </shape>
+    </item>
+    <item
+        android:drawable="@drawable/ic_launcher_foreground"
+        android:top="14dp"
+        android:bottom="14dp"
+        android:left="14dp"
+        android:right="14dp" />
+</layer-list>
