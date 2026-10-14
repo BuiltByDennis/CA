@@ -49,3 +49,6 @@ app.*.map.json
 
 # CA local Supabase config (public keys only — never service_role)
 dart_defines.json
+
+# Drift generated code is regenerated locally (file exceeds push-channel size limits)
+lib/core/db/app_db.g.dart
