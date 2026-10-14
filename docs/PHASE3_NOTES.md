@@ -51,3 +51,9 @@
   account and give admins/auditors the record.
 - Resubmission after rejection creates a fresh 'pending' state in the app;
   previously uploaded docs are not re-uploaded (upload flags persist).
+
+- **Repo note**: `lib/core/db/app_db.g.dart` (Drift generated, ~190 KB) now
+  exceeds the size the GitHub push channel can carry, so it is gitignored
+  and regenerated locally with build_runner (see README "Run it"). The stale
+  v2 copy was deleted from the repo in this phase — a fresh clone MUST run
+  build_runner before `flutter run`.
