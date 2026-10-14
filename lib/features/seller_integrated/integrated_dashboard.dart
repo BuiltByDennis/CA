@@ -18,6 +18,12 @@ class IntegratedDashboard extends StatelessWidget {
             label: const Text('Receipt History'),
             onPressed: () => context.go('/seller-integrated/history'),
           ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.verified_outlined),
+            label: const Text('Business Verification'),
+            onPressed: () => context.go('/seller-integrated/verify'),
+          ),
           const SizedBox(height: 24),
           const Card(child: ListTile(
             leading: Icon(Icons.fact_check),
