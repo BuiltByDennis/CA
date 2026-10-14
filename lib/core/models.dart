@@ -46,6 +46,33 @@ class Receipt {
   final int totalPesewas; final DateTime issuedAt; final String source;
   final String paymentMethod; final String currency;
   int get subtotalPesewas => items.fold(0, (s, i) => s + i.amountPesewas);
+
+  /// Rebuild a Receipt from a decoded QR payload map (spec v1 keys).
+  /// Tolerates the summary/overflow form (no item list).
+  static Receipt fromPayload(Map<String, dynamic> j) => Receipt(
+        id: j['id'] as String,
+        receiptNo: j['no'] as String,
+        sellerBusinessId: j['sid'] as String,
+        sellerName: j['sn'] as String,
+        buyerName: j['bn'] as String?,
+        items: [
+          for (final e in (j['it'] as List? ?? const []))
+            ReceiptItem.fromJson((e as Map).cast<String, dynamic>()),
+        ],
+        taxLines: [
+          for (final e in (j['tx'] as List? ?? const []))
+            TaxLine(
+              name: (e as Map)['n'] as String,
+              ratePercent: ((e)['r'] as num? ?? 0).toDouble(),
+              amountPesewas: (e)['a'] as int,
+            ),
+        ],
+        totalPesewas: j['tot'] as int,
+        issuedAt: DateTime.fromMillisecondsSinceEpoch(((j['ts'] as int) * 1000), isUtc: true),
+        source: j['src'] as String? ?? 'manual',
+        paymentMethod: j['pm'] as String? ?? 'Cash',
+        currency: j['cur'] as String? ?? 'GHS',
+      );
   int get taxPesewas => taxLines.fold(0, (s, t) => s + t.amountPesewas);
 
   /// Canonical payload for signing — QR Payload Spec v1 (docs/QR_PAYLOAD_SPEC_V1.md).
