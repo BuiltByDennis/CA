@@ -32,6 +32,7 @@ class Receipts extends Table {
   TextColumn get source => text()(); // manual | captured | scanned
   TextColumn get qrText => text()();
   TextColumn get direction => text()(); // issued | saved
+  TextColumn get originalReceiptNo => text().nullable()(); // for captured receipts: the POS system's own number
   BoolColumn get verified => boolean().withDefault(const Constant(false))();
   @override
   Set<Column> get primaryKey => {id};
@@ -71,7 +72,14 @@ class AppDb extends _$AppDb {
   AppDb() : super(_open());
   AppDb.forTesting(super.executor);
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) await m.addColumn(receipts, receipts.originalReceiptNo);
+        },
+      );
 
   static LazyDatabase _open() => LazyDatabase(() async {
         final dir = await getApplicationDocumentsDirectory();
