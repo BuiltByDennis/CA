@@ -26,6 +26,7 @@ Sellers register their business and get **verified** before they can issue signe
 - [x] Supabase schema v1 draft (`supabase/schema.sql`)
 - [x] Phase 1 (2026-10-11): local account + PIN auth (offline), Drift DB, real New Receipt form (items/tax presets/payment -> persistent seller key -> signed QR -> saved), real buyer scanner (mobile_scanner) with seller-key pairing QR + offline verify/save, DB-backed grouped History, Supabase config layer (docs/CONNECT_SUPABASE.md)
 - [x] Phase 2 (2026-10-14): integrated-seller Capture — on-device ML Kit OCR, pure-Dart receipt parser (11 parser tests: totals + receipt numbers correct on 9/9 clean samples, garbled sample flagged), Review & Approve screen with check-this highlighting and printed-vs-CA total comparison, Drift v2 (original receipt no.), signed QR on approval (docs/PHASE2_NOTES.md)
+- [x] Phase 3 (2026-10-14): business verification (local form + document photos, validation, submit/resubmit), Supabase sync service (anonymous device link, receipt-backup outbox drain, doc upload, status pull, key publishing), buyer verified-seller registry (scanner distinguishes Verified seller / signed-not-verified / tampered), admin review panel (admin/index.html), schema v2 (admins, full RLS, storage bucket), signing-key backup/restore CAKEYBACKUP1 (docs/PHASE3_NOTES.md)
 - [ ] Phase 1 exit test (needs Dennis + 2 phones): create Supabase config per docs/CONNECT_SUPABASE.md, install on seller + buyer phones, seller issues, buyer scans Seller Key then receipt — in airplane mode, under a minute
 
 ## Run it
