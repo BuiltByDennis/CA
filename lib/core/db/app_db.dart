@@ -279,4 +279,19 @@ class AppDb extends _$AppDb {
   }
 
   Future<int> sellerKeyCount() async => (await select(sellerKeys).get()).length;
+
+  /// Complete account deletion (fix pack): erase EVERY local table.
+  /// Used by Settings → Delete account after PIN confirmation.
+  Future<void> deleteEverything() async {
+    await transaction(() async {
+      await delete(receiptItems).go();
+      await delete(receipts).go();
+      await delete(sellerKeys).go();
+      await delete(syncOutbox).go();
+      await delete(verificationDocs).go();
+      await delete(businessVerification).go();
+      await delete(staffMembers).go();
+      await delete(profiles).go();
+    });
+  }
 }
