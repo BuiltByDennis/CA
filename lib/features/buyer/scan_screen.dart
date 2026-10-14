@@ -6,6 +6,7 @@ import '../../core/models.dart';
 import '../../core/receipt_signer.dart';
 import '../../core/seller_key_service.dart';
 import '../../core/services.dart';
+import '../../core/sync/sync_service.dart';
 
 /// Buyer scanner (Phase 1): scans CAKEY1 pairing QRs and CA1 receipt QRs.
 /// Verification is fully offline against locally stored seller keys.
@@ -17,6 +18,14 @@ class ScanScreen extends StatefulWidget {
 
 class _ScanScreenState extends State<ScanScreen> {
   final _controller = MobileScannerController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Best-effort: refresh the verified-seller registry when online.
+    // Fully offline use is unaffected.
+    SyncService.refreshRegistry();
+  }
   bool _handling = false;
   String? _resultTitle;
   String? _resultBody;
@@ -68,6 +77,7 @@ class _ScanScreenState extends State<ScanScreen> {
               text, ReceiptSigner.b64Decode(key.publicKeyB64)) !=
           null;
     }
+    final businessVerified = verified && (key?.verifiedBusiness ?? false);
     final id = payload['id'] as String? ?? SellerKeyService.newReceiptId();
     final existing = await AppServices.db.receiptById(id);
     if (existing == null) {
@@ -95,12 +105,18 @@ class _ScanScreenState extends State<ScanScreen> {
     setState(() {
       _resultTitle = existing != null
           ? 'Already saved'
-          : (verified ? '✅ Verified receipt saved' : 'Saved — NOT verified');
+          : businessVerified
+              ? '✅ Verified seller — receipt saved'
+              : verified
+                  ? 'Receipt signed — seller not business-verified'
+                  : 'Saved — NOT verified';
       _resultBody =
           '${payload['sn']} · Receipt ${payload['no']} · ${formatGhs(payload['tot'] as int? ?? 0)}'
-          '${key == null ? '\n\nNo key for this seller on this phone yet — scan their Seller Key QR, or wait for the Phase 3 registry, to verify.' : ''}'
+          '${businessVerified ? '\n\nThis seller is in the verified registry and the signature checks out.' : ''}'
+          '${verified && !businessVerified ? '\n\nThe signature is genuine (this seller\'s key is on your phone), but the business is not in the verified registry yet.' : ''}'
+          '${key == null ? '\n\nNo key for this seller on this phone yet — scan their Seller Key QR once, or sync to download the verified registry.' : ''}'
           '${key != null && !verified ? '\n\n⚠️ Signature check FAILED — treat this receipt as tampered.' : ''}';
-      _verified = verified;
+      _verified = businessVerified;
     });
   }
 
