@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/models.dart';
 import '../../core/supabase_config.dart';
+import '../../core/sync/sync_service.dart';
 import 'session_service.dart';
 
 /// One account — the user decides which type they are (plan §2).
@@ -29,6 +30,21 @@ class RolePickerScreen extends StatelessWidget {
                   : 'Supabase: not configured — app works fully offline'),
               subtitle: const Text('See docs/CONNECT_SUPABASE.md to connect your project.'),
             )),
+            if (SupabaseConfig.isConfigured)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: FilledButton.tonalIcon(
+                  icon: const Icon(Icons.sync),
+                  label: const Text('Sync Now — backup, verification, verified sellers'),
+                  onPressed: () async {
+                    final report = await SyncService.syncNow();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(report.message)));
+                    }
+                  },
+                ),
+              ),
             const SizedBox(height: 16),
             for (final mode in UserMode.values)
               Padding(
