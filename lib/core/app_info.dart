@@ -1,4 +1,4 @@
 /// App identity for diagnostics/feedback (Phase 6). Keep in step with
 /// pubspec.yaml `version`.
-const appVersion = '0.6.0';
-const appBuildLabel = 'CA pilot build $appVersion (Phase 6)';
+const appVersion = '0.6.1';
+const appBuildLabel = 'CA pilot build $appVersion (pilot fix pack)';
