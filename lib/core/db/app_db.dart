@@ -33,6 +33,7 @@ class Receipts extends Table {
   TextColumn get qrText => text()();
   TextColumn get direction => text()(); // issued | saved
   TextColumn get originalReceiptNo => text().nullable()(); // for captured receipts: the POS system's own number
+  TextColumn get cashierName => text().nullable()(); // staff member who issued it (Phase 4, local stamp)
   BoolColumn get verified => boolean().withDefault(const Constant(false))();
   @override
   Set<Column> get primaryKey => {id};
@@ -92,6 +93,22 @@ class VerificationDocs extends Table {
   TextColumn get remotePath => text().nullable()();
 }
 
+/// Staff members (Phase 4) — people besides the owner who can work on this
+/// device under the business, each with their own PIN. PINs are salted hashes.
+@DataClassName('StaffMemberRow')
+class StaffMembers extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get phone => text().nullable()();
+  TextColumn get role => text()(); // manager | cashier | accountant
+  TextColumn get pinSalt => text()();
+  TextColumn get pinHash => text()();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+  IntColumn get createdAtUnix => integer()();
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Offline outbox: everything that must sync to Supabase when online (Phase 3).
 @DataClassName('OutboxRow')
 class SyncOutbox extends Table {
@@ -102,12 +119,12 @@ class SyncOutbox extends Table {
   IntColumn get attempts => integer().withDefault(const Constant(0))();
 }
 
-@DriftDatabase(tables: [Profiles, Receipts, ReceiptItems, SellerKeys, SyncOutbox, BusinessVerification, VerificationDocs])
+@DriftDatabase(tables: [Profiles, Receipts, ReceiptItems, SellerKeys, SyncOutbox, BusinessVerification, VerificationDocs, StaffMembers])
 class AppDb extends _$AppDb {
   AppDb() : super(_open());
   AppDb.forTesting(super.executor);
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -118,6 +135,10 @@ class AppDb extends _$AppDb {
             await m.createTable(verificationDocs);
             await m.addColumn(sellerKeys, sellerKeys.source);
             await m.addColumn(sellerKeys, sellerKeys.verifiedBusiness);
+          }
+          if (from < 4) {
+            await m.createTable(staffMembers);
+            await m.addColumn(receipts, receipts.cashierName);
           }
         },
       );
@@ -217,4 +238,23 @@ class AppDb extends _$AppDb {
     await (update(syncOutbox)..where((t) => t.id.equals(id)))
         .write(SyncOutboxCompanion(attempts: Value(attempts)));
   }
+
+  Future<List<StaffMemberRow>> staffList() =>
+      (select(staffMembers)..orderBy([(t) => OrderingTerm.asc(t.name)])).get();
+
+  Future<void> saveStaff(StaffMembersCompanion s) =>
+      into(staffMembers).insertOnConflictUpdate(s);
+
+  Future<void> setStaffActive(String id, bool active) async {
+    await (update(staffMembers)..where((t) => t.id.equals(id)))
+        .write(StaffMembersCompanion(active: Value(active)));
+  }
+
+  Future<void> deleteStaff(String id) =>
+      (delete(staffMembers)..where((t) => t.id.equals(id))).go();
+
+  Future<List<ReceiptRow>> issuedReceipts() =>
+      (select(receipts)..where((t) => t.direction.equals('issued'))).get();
+
+  Future<List<ReceiptItemRow>> allReceiptItems() => select(receiptItems).get();
 }
