@@ -13,16 +13,19 @@ class ReceiptDesign {
     this.applyTaxByDefault = false,
     this.defaultPayment = 'Cash',
     this.style = 0,
+    this.logoPath,
   });
   final String? businessDisplayName;
   final String footerNote;
   final bool applyTaxByDefault;
   final String defaultPayment;
   final int style; // 0 classic, 1 compact, 2 bold header
+  final String? logoPath; // local file path of the business logo (Phase 6 fix pack)
 
   Map<String, Object?> toJson() => {
         'bn': businessDisplayName, 'footer': footerNote,
         'tax': applyTaxByDefault, 'pay': defaultPayment, 'style': style,
+        'logo': logoPath,
       };
 
   static ReceiptDesign fromJson(Map<String, dynamic> j) => ReceiptDesign(
@@ -31,11 +34,12 @@ class ReceiptDesign {
         applyTaxByDefault: j['tax'] as bool? ?? false,
         defaultPayment: j['pay'] as String? ?? 'Cash',
         style: j['style'] as int? ?? 0,
+        logoPath: j['logo'] as String?,
       );
 
   ReceiptDesign copyWith({
     String? businessDisplayName, String? footerNote, bool? applyTaxByDefault,
-    String? defaultPayment, int? style,
+    String? defaultPayment, int? style, String? logoPath,
   }) =>
       ReceiptDesign(
         businessDisplayName: businessDisplayName ?? this.businessDisplayName,
@@ -43,6 +47,7 @@ class ReceiptDesign {
         applyTaxByDefault: applyTaxByDefault ?? this.applyTaxByDefault,
         defaultPayment: defaultPayment ?? this.defaultPayment,
         style: style ?? this.style,
+        logoPath: logoPath ?? this.logoPath,
       );
 }
 
