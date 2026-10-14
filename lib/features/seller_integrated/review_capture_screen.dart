@@ -6,6 +6,7 @@ import '../../core/models.dart';
 import '../../core/ocr/receipt_parser.dart';
 import '../../core/seller_key_service.dart';
 import '../../core/services.dart';
+import '../auth/session_service.dart';
 import '../seller_manual/new_receipt_screen.dart' show IssuedQrScreen;
 
 /// Review & Approve (Phase 2): the human-in-the-loop screen.
@@ -130,6 +131,7 @@ class _ReviewCaptureScreenState extends State<ReviewCaptureScreen> {
         totalPesewas: receipt.totalPesewas, paymentMethod: _payment,
         issuedAtUnix: receipt.issuedAt.millisecondsSinceEpoch ~/ 1000,
         source: 'captured', qrText: qr, direction: 'issued',
+        cashierName: Value(SessionService.currentUserName),
         verified: const Value(true),
         originalReceiptNo:
             Value(_originalNo.text.trim().isEmpty ? null : _originalNo.text.trim()),
