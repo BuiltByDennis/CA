@@ -28,18 +28,3 @@ class IntegratedDashboard extends StatelessWidget {
       );
 }
 
-class CaptureScreen extends StatelessWidget {
-  const CaptureScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Capture Receipt')),
-        body: const Center(child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text('Phase 2: photograph / upload your existing system receipt '
-              '(from PC screen or paper) → on-device OCR → side-by-side review '
-              'with low-confidence fields highlighted → Approve → CA generates '
-              'the signed QR for the buyer to scan.',
-              textAlign: TextAlign.center),
-        )),
-      );
-}
