@@ -32,6 +32,7 @@ Sellers register their business and get **verified** before they can issue signe
 ## Run it
 ```bash
 flutter pub get
+dart run build_runner build --delete-conflicting-outputs   # generates lib/core/db/app_db.g.dart (gitignored)
 flutter run
 ```
 
