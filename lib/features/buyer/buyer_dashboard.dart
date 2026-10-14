@@ -22,24 +22,8 @@ class BuyerDashboard extends StatelessWidget {
           const Card(child: ListTile(
             leading: Icon(Icons.verified),
             title: Text('Every scanned receipt is signature-checked offline.'),
-            subtitle: Text('Look for the Verified badge before you trust a receipt.'),
+            subtitle: Text('First time with a seller? Scan their Seller Key QR once so your phone can verify them.'),
           )),
         ]),
-      );
-}
-
-class ScanScreen extends StatelessWidget {
-  const ScanScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Scan for Receipt')),
-        body: const Center(child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text('Phase 1: camera scanner (mobile_scanner) lands here.\n\n'
-              'Flow: scan CA QR → verify Ed25519 signature offline → show seller, '
-              'items, tax, total → auto-save to History.\n\n'
-              'Duplicate scans and tampered QRs are detected and warned.',
-              textAlign: TextAlign.center),
-        )),
       );
 }
