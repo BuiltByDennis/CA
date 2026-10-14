@@ -6,6 +6,7 @@ import '../../core/models.dart';
 import '../../core/seller_key_service.dart';
 import '../../core/services.dart';
 import '../../core/tax_presets.dart';
+import '../../core/sync/sync_payloads.dart';
 
 /// Real New Receipt form (Phase 1): buyer, items, tax presets, payment —
 /// totals in pesewas, signed with the seller's persistent device key, saved
@@ -92,6 +93,8 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
     );
     final signer = await SellerKeyService.signerFor(businessId);
     final qr = await signer.signReceipt(receipt);
+    final sellerVerified =
+        (await AppServices.db.getVerification())?.status == 'verified';
     await AppServices.db.saveReceipt(
       ReceiptsCompanion.insert(
         id: receipt.id, receiptNo: receipt.receiptNo, sellerBusinessId: businessId,
@@ -107,7 +110,8 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
     );
     if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => IssuedQrScreen(qr: qr, receipt: receipt)));
+        builder: (_) => IssuedQrScreen(
+            qr: qr, receipt: receipt, sellerVerified: sellerVerified)));
     setState(() => _issuing = false);
   }
 
@@ -175,9 +179,11 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
 }
 
 class IssuedQrScreen extends StatelessWidget {
-  const IssuedQrScreen({super.key, required this.qr, required this.receipt});
+  const IssuedQrScreen(
+      {super.key, required this.qr, required this.receipt, this.sellerVerified = true});
   final String qr;
   final Receipt receipt;
+  final bool sellerVerified;
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text('Receipt ${receipt.receiptNo}')),
@@ -191,6 +197,15 @@ class IssuedQrScreen extends StatelessWidget {
                   'verifies offline. First time? The buyer should scan your '
                   'Seller Key QR once (Seller dashboard → My Seller Key).',
                   textAlign: TextAlign.center)),
+          if (!sellerVerified)
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Card(color: Color(0xFFFFF8E1), child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Your business is not verified yet, so buyers '
+                      'will not see the Verified badge for this receipt. '
+                      'Complete Business Verification from your dashboard to earn it.',
+                      textAlign: TextAlign.center),
+                ))),
         ])),
       );
 }
@@ -204,6 +219,49 @@ class SellerKeyScreen extends StatefulWidget {
 class _SellerKeyScreenState extends State<SellerKeyScreen> {
   String? _qr;
   String? _pub;
+  final _import = TextEditingController();
+
+  Future<void> _exportBackup() async {
+    final profile = await AppServices.db.getProfile();
+    final businessId = profile?.businessId ?? 'biz-demo';
+    final seed = await SellerKeyService.seedFor(businessId);
+    if (seed == null || !mounted) return;
+    final backup = exportKeyBackup(seed);
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Signing-key backup'),
+        content: SelectableText(
+            '$backup\n\nTreat this like a password: anyone with it can '
+            'issue receipts as your business. Store it somewhere safe '
+            '(not in a public chat). On a new phone, paste it under '
+            'Import to restore this same key.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Done')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importBackup() async {
+    final seed = parseKeyBackup(_import.text);
+    if (seed == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('That does not look like a CAKEYBACKUP1 key backup.')));
+      return;
+    }
+    final profile = await AppServices.db.getProfile();
+    final businessId = profile?.businessId ?? 'biz-demo';
+    await SellerKeyService.importSeed(businessId, seed);
+    _import.clear();
+    await _load();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Key restored. New receipts now sign with the restored key.')));
+    }
+  }
   @override
   void initState() { super.initState(); _load(); }
   Future<void> _load() async {
@@ -223,9 +281,9 @@ class _SellerKeyScreenState extends State<SellerKeyScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('My Seller Key')),
-        body: Center(child: _qr == null
-            ? const CircularProgressIndicator()
-            : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        body: _qr == null
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(children: [
                 QrImageView(data: _qr!, size: 260),
                 const SizedBox(height: 12),
                 const Padding(padding: EdgeInsets.all(16),
@@ -234,6 +292,32 @@ class _SellerKeyScreenState extends State<SellerKeyScreen> {
                         'published in the Supabase verified-seller registry.',
                         textAlign: TextAlign.center)),
                 SelectableText(_pub ?? '', textAlign: TextAlign.center),
-              ])),
+                const Divider(height: 32),
+                const Padding(padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('Changing phones? Back up this signing key — '
+                        'without it, receipts you already issued cannot be '
+                        'matched to a key on a new phone.',
+                        textAlign: TextAlign.center)),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.download),
+                  label: const Text('Export Key Backup'),
+                  onPressed: _exportBackup,
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    controller: _import,
+                    decoration: const InputDecoration(
+                        labelText: 'Paste a CAKEYBACKUP1… backup to restore'),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.upload),
+                  label: const Text('Import Key Backup'),
+                  onPressed: _importBackup,
+                ),
+                const SizedBox(height: 24),
+              ]),
       );
 }
