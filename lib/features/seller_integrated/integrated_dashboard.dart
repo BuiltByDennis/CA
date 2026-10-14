@@ -37,6 +37,14 @@ class IntegratedDashboard extends StatelessWidget {
               onPressed: () => context.go('/seller/analytics'),
             ),
           ],
+          if (staff_logic.canViewAnalytics(SessionService.currentRole)) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.receipt_long),
+              label: const Text('Tax Report & Exports'),
+              onPressed: () => context.go('/seller/tax'),
+            ),
+          ],
           if (staff_logic.canManageStaff(SessionService.currentRole)) ...[
             const SizedBox(height: 12),
             OutlinedButton.icon(
