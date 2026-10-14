@@ -34,6 +34,9 @@ class Receipts extends Table {
   TextColumn get direction => text()(); // issued | saved
   TextColumn get originalReceiptNo => text().nullable()(); // for captured receipts: the POS system's own number
   TextColumn get cashierName => text().nullable()(); // staff member who issued it (Phase 4, local stamp)
+  TextColumn get paymentStatus => text().nullable()(); // Phase 5: 'pending' | 'paid' (MoMo confirmation flow); null = not tracked
+  TextColumn get paymentReference => text().nullable()(); // Phase 5: MoMo transaction ID entered on confirmation
+  TextColumn get buyerPhone => text().nullable()(); // Phase 5: buyer MoMo number (local only, not in payload)
   BoolColumn get verified => boolean().withDefault(const Constant(false))();
   @override
   Set<Column> get primaryKey => {id};
@@ -124,7 +127,7 @@ class AppDb extends _$AppDb {
   AppDb() : super(_open());
   AppDb.forTesting(super.executor);
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -139,6 +142,11 @@ class AppDb extends _$AppDb {
           if (from < 4) {
             await m.createTable(staffMembers);
             await m.addColumn(receipts, receipts.cashierName);
+          }
+          if (from < 5) {
+            await m.addColumn(receipts, receipts.paymentStatus);
+            await m.addColumn(receipts, receipts.paymentReference);
+            await m.addColumn(receipts, receipts.buyerPhone);
           }
         },
       );
@@ -257,4 +265,11 @@ class AppDb extends _$AppDb {
       (select(receipts)..where((t) => t.direction.equals('issued'))).get();
 
   Future<List<ReceiptItemRow>> allReceiptItems() => select(receiptItems).get();
+
+  Future<void> setPaymentStatus(String id, String status, {String? reference}) async {
+    await (update(receipts)..where((t) => t.id.equals(id))).write(ReceiptsCompanion(
+      paymentStatus: Value(status),
+      paymentReference: Value(reference),
+    ));
+  }
 }
