@@ -7,7 +7,10 @@ import '../shared/onboarding_card.dart';
 class BuyerDashboard extends StatelessWidget {
   const BuyerDashboard({super.key});
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) { if (!didPop) context.go('/home'); },
+        child: Scaffold(
         appBar: AppBar(title: Text(tr('buyer'))),
         body: ListView(padding: const EdgeInsets.all(20), children: [
           const OnboardingCard(mode: UserMode.buyer),
@@ -15,13 +18,13 @@ class BuyerDashboard extends StatelessWidget {
           FilledButton.icon(
             icon: const Icon(Icons.qr_code_scanner, size: 28),
             label: Text(tr('scanForReceipt')),
-            onPressed: () => context.go('/buyer/scan'),
+            onPressed: () => context.push('/buyer/scan'),
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             icon: const Icon(Icons.history),
             label: Text(tr('myReceipts')),
-            onPressed: () => context.go('/buyer/history'),
+            onPressed: () => context.push('/buyer/history'),
           ),
           const SizedBox(height: 24),
           Card(child: ListTile(
@@ -30,5 +33,5 @@ class BuyerDashboard extends StatelessWidget {
             subtitle: const Text('First time with a seller? Scan their Seller Key QR once so your phone can verify them.'),
           )),
         ]),
-      );
+      ));
 }
