@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/models.dart';
+import '../shared/onboarding_card.dart';
 import '../../core/staff/staff_logic.dart' as staff_logic;
 import '../auth/session_service.dart';
 
@@ -10,6 +12,8 @@ class ManualDashboard extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(tr('sellerManual'))),
         body: ListView(padding: const EdgeInsets.all(20), children: [
+          const OnboardingCard(mode: UserMode.sellerManual),
+          const SizedBox(height: 12),
           if (staff_logic.canIssue(SessionService.currentRole))
             FilledButton.icon(
               icon: const Icon(Icons.add_circle, size: 28),
@@ -65,25 +69,6 @@ class ManualDashboard extends StatelessWidget {
             label: Text(tr('mySellerKey')),
             onPressed: () => context.go('/seller-manual/key'),
           ),
-        ]),
-      );
-}
-
-class DesignReceiptScreen extends StatelessWidget {
-  const DesignReceiptScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Design Your Receipt')),
-        body: ListView(padding: const EdgeInsets.all(20), children: const [
-          Text('Set at signup, editable any time (full editor lands with business registration in Phase 3):',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          SizedBox(height: 12),
-          ListTile(leading: Icon(Icons.store), title: Text('1. Business name, contact, location')),
-          ListTile(leading: Icon(Icons.image), title: Text('2. Logo or photo of your shop sign')),
-          ListTile(leading: Icon(Icons.style), title: Text('3. Template style (3 clean layouts)')),
-          ListTile(leading: Icon(Icons.percent), title: Text('4. Tax setup — VAT toggle + Ghana presets')),
-          ListTile(leading: Icon(Icons.payments), title: Text('5. Payment methods: Cash / MoMo / Bank / Card')),
-          ListTile(leading: Icon(Icons.notes), title: Text('6. Footer note — thank you / returns policy')),
         ]),
       );
 }
