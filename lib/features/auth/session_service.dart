@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../core/staff/staff_logic.dart' as staff;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -10,6 +11,19 @@ class SessionService {
   static const _saltKey = 'ca_pin_salt';
   static const _hashKey = 'ca_pin_hash';
   static bool unlocked = false;
+
+  /// Bumped when the account is created or deleted so the AuthGate
+  /// re-reads the profile instead of showing a stale one.
+  static final ValueNotifier<int> accountRevision = ValueNotifier(0);
+
+  /// Verify a PIN against the stored hash WITHOUT changing session state
+  /// (used by the delete-account confirmation step).
+  static Future<bool> checkPin(String pin) async {
+    final salt = await _storage.read(key: _saltKey);
+    final expected = await _storage.read(key: _hashKey);
+    if (salt == null || expected == null) return false;
+    return await _hash(pin, salt) == expected;
+  }
 
   static Future<String> _hash(String pin, String salt) =>
       staff.hashPin(pin, salt);
