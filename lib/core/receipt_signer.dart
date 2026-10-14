@@ -17,6 +17,10 @@ class ReceiptSigner {
   static Future<ReceiptSigner> fromSeed(List<int> seed) async =>
       ReceiptSigner(await _algo.newKeyPairFromSeed(seed));
 
+  /// Private seed bytes (32) — ONLY for the owner's own key backup export.
+  Future<List<int>> keyPairForBackup() =>
+      (_keyPair as SimpleKeyPair).extractPrivateKeyBytes();
+
   Future<String> publicKeyBase64Url() async {
     final kp = await _keyPair.extractPublicKey() as SimplePublicKey;
     return base64Url.encode(kp.bytes).replaceAll('=', '');
