@@ -42,7 +42,7 @@ class RolePickerScreen extends StatelessWidget {
             OutlinedButton.icon(
               icon: const Icon(Icons.help_outline),
               label: const Text('Help & Feedback'),
-              onPressed: () => context.go('/help'),
+              onPressed: () => context.push('/help'),
             ),
             const SizedBox(height: 16),
             const Center(child: Text(appBuildLabel, style: TextStyle(color: Colors.grey, fontSize: 12))),
