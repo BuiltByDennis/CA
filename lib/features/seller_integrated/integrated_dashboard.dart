@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/strings.dart';
+import '../../core/models.dart';
+import '../shared/onboarding_card.dart';
 import '../../core/staff/staff_logic.dart' as staff_logic;
 import '../auth/session_service.dart';
 
@@ -10,6 +12,8 @@ class IntegratedDashboard extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(tr('sellerIntegrated'))),
         body: ListView(padding: const EdgeInsets.all(20), children: [
+          const OnboardingCard(mode: UserMode.sellerIntegrated),
+          const SizedBox(height: 12),
           if (staff_logic.canCapture(SessionService.currentRole))
             FilledButton.icon(
               icon: const Icon(Icons.document_scanner, size: 28),
