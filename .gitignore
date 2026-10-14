@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# CA local Supabase config (public keys only — never service_role)
+dart_defines.json
