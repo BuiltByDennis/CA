@@ -8,6 +8,7 @@ import '../features/seller_integrated/capture_screen.dart';
 import '../features/seller_manual/manual_dashboard.dart';
 import '../features/seller_manual/new_receipt_screen.dart';
 import '../features/shared/history_screen.dart';
+import '../features/verification/verification_screen.dart';
 
 final caRouter = GoRouter(routes: [
   GoRoute(path: '/', builder: (context, state) => const AuthGate()),
@@ -18,9 +19,11 @@ final caRouter = GoRouter(routes: [
   GoRoute(path: '/seller-integrated', builder: (context, state) => const IntegratedDashboard()),
   GoRoute(path: '/seller-integrated/capture', builder: (context, state) => const CaptureScreen()),
   GoRoute(path: '/seller-integrated/history', builder: (context, state) => const HistoryScreen(title: 'Receipt History', direction: 'issued')),
+  GoRoute(path: '/seller-integrated/verify', builder: (context, state) => const VerificationScreen()),
   GoRoute(path: '/seller-manual', builder: (context, state) => const ManualDashboard()),
   GoRoute(path: '/seller-manual/new', builder: (context, state) => const NewReceiptScreen()),
   GoRoute(path: '/seller-manual/design', builder: (context, state) => const DesignReceiptScreen()),
   GoRoute(path: '/seller-manual/key', builder: (context, state) => const SellerKeyScreen()),
   GoRoute(path: '/seller-manual/history', builder: (context, state) => const HistoryScreen(title: 'Receipt History', direction: 'issued')),
+  GoRoute(path: '/seller-manual/verify', builder: (context, state) => const VerificationScreen()),
 ]);
