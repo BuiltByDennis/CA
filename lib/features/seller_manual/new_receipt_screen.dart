@@ -11,6 +11,7 @@ import '../../core/sync/sync_payloads.dart';
 import '../../core/staff/staff_logic.dart' as staff_logic;
 import '../../core/printing/print_service.dart';
 import '../printing/printer_screen.dart';
+import '../../core/share_receipt.dart';
 
 /// Real New Receipt form (Phase 1): buyer, items, tax presets, payment —
 /// totals in pesewas, signed with the seller's persistent device key, saved
@@ -32,6 +33,8 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
   final _buyer = TextEditingController();
   final _rows = <_ItemRow>[_ItemRow()];
   String _payment = 'Cash';
+  final _buyerPhone = TextEditingController();
+  bool _momoReceived = false;
   bool _applyTax = false;
   bool _issuing = false;
 
@@ -107,6 +110,8 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
         issuedAtUnix: receipt.issuedAt.millisecondsSinceEpoch ~/ 1000,
         source: 'manual', qrText: qr, direction: 'issued',
         cashierName: Value(SessionService.currentUserName),
+        paymentStatus: Value(_payment == 'MoMo' && !_momoReceived ? 'pending' : 'paid'),
+        buyerPhone: Value(_buyerPhone.text.trim().isEmpty ? null : _buyerPhone.text.trim()),
         verified: const Value(true),
       ),
       items.map((i) => ReceiptItemsCompanion.insert(
@@ -116,7 +121,9 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
     if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => IssuedQrScreen(
-            qr: qr, receipt: receipt, sellerVerified: sellerVerified)));
+            qr: qr, receipt: receipt, sellerVerified: sellerVerified,
+            paymentPending: _payment == 'MoMo' && !_momoReceived,
+            receiptDbId: receipt.id)));
     setState(() => _issuing = false);
   }
 
@@ -170,6 +177,19 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
                 .map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
             onChanged: (m) => setState(() => _payment = m ?? 'Cash'),
           ),
+          if (_payment == 'MoMo') ...[
+            const SizedBox(height: 8),
+            TextField(controller: _buyerPhone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                    labelText: 'Buyer MoMo number (optional)',
+                    helperText: 'Ask the buyer to send to your MoMo number with this receipt number as the reference.')),
+            SwitchListTile(
+              title: const Text('MoMo payment already received'),
+              subtitle: const Text('Off = receipt is marked "MoMo pending" until you confirm the payment in History.'),
+              value: _momoReceived, onChanged: (v) => setState(() => _momoReceived = v),
+            ),
+          ],
           const SizedBox(height: 16),
           Text('Subtotal: ${formatGhs(_subtotal)}'),
           for (final t in _taxLines) Text('${t.name} (${t.ratePercent}%): ${formatGhs(t.amountPesewas)}'),
@@ -185,10 +205,13 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
 
 class IssuedQrScreen extends StatelessWidget {
   const IssuedQrScreen(
-      {super.key, required this.qr, required this.receipt, this.sellerVerified = true});
+      {super.key, required this.qr, required this.receipt, this.sellerVerified = true,
+      this.paymentPending = false, this.receiptDbId});
   final String qr;
   final Receipt receipt;
   final bool sellerVerified;
+  final bool paymentPending;
+  final String? receiptDbId;
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text('Receipt ${receipt.receiptNo}')),
@@ -202,6 +225,16 @@ class IssuedQrScreen extends StatelessWidget {
                   'verifies offline. First time? The buyer should scan your '
                   'Seller Key QR once (Seller dashboard → My Seller Key).',
                   textAlign: TextAlign.center)),
+          if (paymentPending)
+            const Card(color: Color(0xFFFFF3CD), child: Padding(padding: EdgeInsets.all(12),
+                child: Text('MoMo payment PENDING — confirm it in History when '
+                    'the money arrives (you can record the transaction ID there).',
+                    textAlign: TextAlign.center))),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.share),
+            label: const Text('Share Receipt (WhatsApp etc.)'),
+            onPressed: () => shareReceiptQr(context, receipt: receipt, qr: qr),
+          ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             icon: const Icon(Icons.print),
