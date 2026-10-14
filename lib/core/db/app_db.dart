@@ -53,8 +53,43 @@ class SellerKeys extends Table {
   TextColumn get businessName => text()();
   TextColumn get publicKeyB64 => text()();
   IntColumn get addedAtUnix => integer()();
+  TextColumn get source => text().withDefault(const Constant('pairing'))(); // pairing | registry
+  BoolColumn get verifiedBusiness => boolean().withDefault(const Constant(false))();
   @override
   Set<Column> get primaryKey => {businessId};
+}
+
+/// Business verification record (Phase 3) — one row (id 'me') per seller.
+/// ghanaCardNo is stored ONLY on this device and is never synced.
+@DataClassName('BusinessVerificationRow')
+class BusinessVerification extends Table {
+  TextColumn get id => text()();
+  TextColumn get legalName => text()();
+  TextColumn get tradingName => text()();
+  TextColumn get businessType => text()(); // sole_prop | limited | informal | company
+  TextColumn get orcNumber => text().nullable()();
+  TextColumn get tin => text().nullable()();
+  BoolColumn get vatRegistered => boolean().withDefault(const Constant(false))();
+  TextColumn get address => text().nullable()();
+  TextColumn get category => text().nullable()();
+  TextColumn get contactPhone => text().nullable()();
+  TextColumn get contactEmail => text().nullable()();
+  TextColumn get ghanaCardNo => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('unverified'))();
+  TextColumn get note => text().nullable()();
+  IntColumn get submittedAtUnix => integer().nullable()();
+  TextColumn get remoteBusinessId => text().nullable()();
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('VerificationDocRow')
+class VerificationDocs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get docType => text()(); // orc_certificate | tin_certificate | ghana_card | business_permit | other
+  TextColumn get localPath => text()();
+  BoolColumn get uploaded => boolean().withDefault(const Constant(false))();
+  TextColumn get remotePath => text().nullable()();
 }
 
 /// Offline outbox: everything that must sync to Supabase when online (Phase 3).
@@ -67,17 +102,23 @@ class SyncOutbox extends Table {
   IntColumn get attempts => integer().withDefault(const Constant(0))();
 }
 
-@DriftDatabase(tables: [Profiles, Receipts, ReceiptItems, SellerKeys, SyncOutbox])
+@DriftDatabase(tables: [Profiles, Receipts, ReceiptItems, SellerKeys, SyncOutbox, BusinessVerification, VerificationDocs])
 class AppDb extends _$AppDb {
   AppDb() : super(_open());
   AppDb.forTesting(super.executor);
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {
           if (from < 2) await m.addColumn(receipts, receipts.originalReceiptNo);
+          if (from < 3) {
+            await m.createTable(businessVerification);
+            await m.createTable(verificationDocs);
+            await m.addColumn(sellerKeys, sellerKeys.source);
+            await m.addColumn(sellerKeys, sellerKeys.verifiedBusiness);
+          }
         },
       );
 
@@ -127,4 +168,53 @@ class AppDb extends _$AppDb {
 
   Future<SellerKeyRow?> sellerKey(String businessId) =>
       (select(sellerKeys)..where((t) => t.businessId.equals(businessId))).getSingleOrNull();
+
+  Future<BusinessVerificationRow?> getVerification() async {
+    try {
+      return await (select(businessVerification)
+            ..where((t) => t.id.equals('me')))
+          .getSingleOrNull();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveVerification(BusinessVerificationCompanion v) =>
+      into(businessVerification).insertOnConflictUpdate(v);
+
+  Future<void> setVerificationStatus(String status, {String? note, String? remoteBusinessId}) async {
+    final existing = await getVerification();
+    if (existing == null) return;
+    await (update(businessVerification)..where((t) => t.id.equals('me'))).write(
+      BusinessVerificationCompanion(
+        status: Value(status),
+        note: Value(note),
+        remoteBusinessId: remoteBusinessId == null ? const Value.absent() : Value(remoteBusinessId),
+      ),
+    );
+  }
+
+  Future<int> addVerificationDoc(String docType, String localPath) =>
+      into(verificationDocs).insert(VerificationDocsCompanion.insert(
+          docType: docType, localPath: localPath));
+
+  Future<List<VerificationDocRow>> verificationDocsList() =>
+      select(verificationDocs).get();
+
+  Future<void> markDocUploaded(int id, String remotePath) async {
+    await (update(verificationDocs)..where((t) => t.id.equals(id))).write(
+      VerificationDocsCompanion(uploaded: const Value(true), remotePath: Value(remotePath)),
+    );
+  }
+
+  Future<List<OutboxRow>> outboxRows() =>
+      (select(syncOutbox)..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
+
+  Future<void> deleteOutboxRow(int id) =>
+      (delete(syncOutbox)..where((t) => t.id.equals(id))).go();
+
+  Future<void> bumpOutboxAttempts(int id, int attempts) async {
+    await (update(syncOutbox)..where((t) => t.id.equals(id)))
+        .write(SyncOutboxCompanion(attempts: Value(attempts)));
+  }
 }
