@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../core/design/receipt_design.dart';
 import '../../core/services.dart';
 
@@ -18,6 +21,7 @@ class _DesignReceiptScreenState extends State<DesignReceiptScreen> {
   String _payment = 'Cash';
   int _style = 0;
   bool _loaded = false;
+  String? _logoPath;
 
   @override
   void initState() {
@@ -35,8 +39,19 @@ class _DesignReceiptScreenState extends State<DesignReceiptScreen> {
       _taxDefault = d?.applyTaxByDefault ?? false;
       _payment = d?.defaultPayment ?? 'Cash';
       _style = d?.style ?? 0;
+      _logoPath = d?.logoPath;
       _loaded = true;
     });
+  }
+
+  Future<void> _pickLogo() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 90);
+    if (picked == null) return;
+    final dir = await getApplicationDocumentsDirectory();
+    final ext = picked.path.contains('.') ? picked.path.split('.').last : 'png';
+    final dest = File('${dir.path}/business_logo.$ext');
+    await dest.writeAsBytes(await picked.readAsBytes());
+    if (mounted) setState(() => _logoPath = dest.path);
   }
 
   Future<void> _save() async {
@@ -46,6 +61,7 @@ class _DesignReceiptScreenState extends State<DesignReceiptScreen> {
       applyTaxByDefault: _taxDefault,
       defaultPayment: _payment,
       style: _style,
+      logoPath: _logoPath,
     ));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -68,6 +84,26 @@ class _DesignReceiptScreenState extends State<DesignReceiptScreen> {
                     decoration: const InputDecoration(
                         labelText: 'Footer note',
                         helperText: 'e.g. Thank you / returns policy / MoMo number.')),
+                const SizedBox(height: 16),
+                const Text('Business logo', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                if (_logoPath != null && File(_logoPath!).existsSync())
+                  Column(children: [
+                    Image.file(File(_logoPath!), height: 84),
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Remove logo'),
+                      onPressed: () => setState(() => _logoPath = null),
+                    ),
+                  ])
+                else
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.upload),
+                    label: const Text('Upload logo'),
+                    onPressed: _pickLogo,
+                  ),
+                const Text('Shown on your receipt screen and shares. A square PNG with a transparent or white background looks best.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 16),
                 const Text('Layout style', style: TextStyle(fontWeight: FontWeight.bold)),
                 RadioGroup<int>(
