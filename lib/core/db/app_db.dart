@@ -272,4 +272,11 @@ class AppDb extends _$AppDb {
       paymentReference: Value(reference),
     ));
   }
+
+  Future<int> receiptCount(String direction) async {
+    final rows = await (select(receipts)..where((t) => t.direction.equals(direction))).get();
+    return rows.length;
+  }
+
+  Future<int> sellerKeyCount() async => (await select(sellerKeys).get()).length;
 }
