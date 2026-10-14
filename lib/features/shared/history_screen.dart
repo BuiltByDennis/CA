@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/db/app_db.dart';
 import '../../core/models.dart';
 import '../../core/services.dart';
+import 'receipt_detail_screen.dart';
 
 /// Receipt History from the local DB (Phase 1) — grouped by buyer/company
 /// for sellers (direction=issued) and by seller for buyers (direction=saved).
@@ -74,6 +75,8 @@ class HistoryScreen extends StatelessWidget {
                         : Chip(
                             label: Text(r.verified ? 'Verified' : 'Unverified'),
                             backgroundColor: r.verified ? Colors.green.shade100 : Colors.orange.shade100),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ReceiptDetailScreen(row: r))),
                   ),
               ],
             ]);
