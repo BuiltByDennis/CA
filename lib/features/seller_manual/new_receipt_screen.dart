@@ -5,8 +5,12 @@ import '../../core/db/app_db.dart';
 import '../../core/models.dart';
 import '../../core/seller_key_service.dart';
 import '../../core/services.dart';
+import '../auth/session_service.dart';
 import '../../core/tax_presets.dart';
 import '../../core/sync/sync_payloads.dart';
+import '../../core/staff/staff_logic.dart' as staff_logic;
+import '../../core/printing/print_service.dart';
+import '../printing/printer_screen.dart';
 
 /// Real New Receipt form (Phase 1): buyer, items, tax presets, payment —
 /// totals in pesewas, signed with the seller's persistent device key, saved
@@ -102,6 +106,7 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
         totalPesewas: receipt.totalPesewas, paymentMethod: _payment,
         issuedAtUnix: receipt.issuedAt.millisecondsSinceEpoch ~/ 1000,
         source: 'manual', qrText: qr, direction: 'issued',
+        cashierName: Value(SessionService.currentUserName),
         verified: const Value(true),
       ),
       items.map((i) => ReceiptItemsCompanion.insert(
@@ -197,6 +202,23 @@ class IssuedQrScreen extends StatelessWidget {
                   'verifies offline. First time? The buyer should scan your '
                   'Seller Key QR once (Seller dashboard → My Seller Key).',
                   textAlign: TextAlign.center)),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.print),
+            label: const Text('Print QR Slip (for buyers without a smartphone)'),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => PrinterScreen(slip: SlipData(
+                      businessName: receipt.sellerName,
+                      receiptNo: receipt.receiptNo,
+                      dateText: receipt.issuedAt.toLocal().toString(),
+                      totalText: slipMoney(receipt.totalPesewas),
+                      itemLines: receipt.items
+                          .map((i) => '${i.qty} x ${i.name}  ${slipMoney(i.amountPesewas)}')
+                          .toList(),
+                      qrText: qr,
+                      cashierName: SessionService.currentUserName,
+                    )))),
+          ),
           if (!sellerVerified)
             const Padding(padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Card(color: Color(0xFFFFF8E1), child: Padding(
@@ -299,11 +321,14 @@ class _SellerKeyScreenState extends State<SellerKeyScreen> {
                         'matched to a key on a new phone.',
                         textAlign: TextAlign.center)),
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.download),
-                  label: const Text('Export Key Backup'),
-                  onPressed: _exportBackup,
-                ),
+                if (staff_logic.canExportKey(SessionService.currentRole))
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.download),
+                    label: const Text('Export Key Backup'),
+                    onPressed: _exportBackup,
+                  )
+                else
+                  const Text('Key backup export is owner-only.'),
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: TextField(
