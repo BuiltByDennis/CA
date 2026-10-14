@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CA — Verification Review (Admin)</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background:#f6f7f6; color:#14231a; }
+  header { background:#14532D; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; }
+  header b { font-size:18px; } .gold { color:#C5A04D; }
+  main { max-width: 980px; margin: 20px auto; padding: 0 16px; }
+  .card { background:#fff; border:1px solid #ddd; border-radius:10px; padding:16px; margin-bottom:14px; }
+  input, select, textarea { width:100%; padding:9px; margin:5px 0 10px; border:1px solid #bbb; border-radius:6px; box-sizing:border-box; }
+  button { background:#14532D; color:#fff; border:0; padding:10px 16px; border-radius:7px; cursor:pointer; font-weight:600; }
+  button.reject { background:#b3261e; } button.ghost { background:#e8ece8; color:#14231a; }
+  table { width:100%; border-collapse:collapse; } td, th { padding:8px; border-bottom:1px solid #eee; text-align:left; }
+  tr.row { cursor:pointer; } tr.row:hover { background:#f2f6f2; }
+  .badge { padding:2px 8px; border-radius:20px; font-size:12px; font-weight:700; }
+  .pending { background:#FFF3CD; } .verified { background:#D1E7DD; } .rejected { background:#F8D7DA; } .unverified { background:#E2E3E5; }
+  .hidden { display:none; } .err { color:#b3261e; } .muted { color:#666; font-size:13px; }
+  img.doc { max-width: 320px; border:1px solid #ccc; border-radius:6px; display:block; margin:6px 0; }
+</style>
+</head>
+<body>
+<header><b>CA <span class="gold">Admin</span> — Business Verification</b><span id="who"></span></header>
+<main>
+  <div class="card" id="configCard">
+    <h3>1. Connect to your Supabase project</h3>
+    <label>Project URL</label><input id="sbUrl" placeholder="https://YOUR-PROJECT.supabase.co">
+    <label>Publishable / anon key (never the service_role key)</label><input id="sbKey" placeholder="sb_publishable_… or eyJ…">
+    <button id="saveCfg">Save connection</button>
+    <p class="muted">Stored only in this browser's localStorage.</p>
+  </div>
+
+  <div class="card hidden" id="loginCard">
+    <h3>2. Sign in as an admin</h3>
+    <label>Email</label><input id="email" type="email">
+    <label>Password</label><input id="password" type="password">
+    <button id="loginBtn">Sign in</button>
+    <p class="err" id="loginErr"></p>
+    <p class="muted">Your Supabase user must also be added to the <code>admins</code> table (see admin/README.md).</p>
+  </div>
+
+  <div class="card hidden" id="listCard">
+    <h3>3. Businesses
+      <select id="statusFilter" style="width:auto; float:right;">
+        <option value="pending">Pending review</option>
+        <option value="verified">Verified</option>
+        <option value="rejected">Rejected</option>
+        <option value="all">All</option>
+      </select>
+    </h3>
+    <table><thead><tr><th>Trading name</th><th>Type</th><th>Category</th><th>Status</th><th>Submitted/Updated</th></tr></thead>
+    <tbody id="bizRows"></tbody></table>
+    <p class="muted" id="listEmpty"></p>
+  </div>
+
+  <div class="card hidden" id="detailCard">
+    <button class="ghost" id="backBtn">← Back to list</button>
+    <h3 id="dTitle"></h3>
+    <div id="dBody"></div>
+    <h4>Documents</h4>
+    <div id="dDocs"></div>
+    <label>Reviewer note (required for rejection — the seller sees this)</label>
+    <textarea id="dNote" rows="2"></textarea>
+    <button id="approveBtn">✓ Approve — mark Verified</button>
+    <button class="reject" id="rejectBtn">✗ Reject</button>
+    <p class="err" id="dErr"></p>
+  </div>
+</main>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+let sb = null, current = null;
+const $ = id => document.getElementById(id);
+
+function connect() {
+  const url = localStorage.getItem('ca_sb_url'), key = localStorage.getItem('ca_sb_key');
+  if (!url || !key) return;
+  $('sbUrl').value = url; $('sbKey').value = key;
+  sb = createClient(url, key);
+  $('loginCard').classList.remove('hidden');
+}
+$('saveCfg').onclick = () => {
+  localStorage.setItem('ca_sb_url', $('sbUrl').value.trim());
+  localStorage.setItem('ca_sb_key', $('sbKey').value.trim());
+  connect(); alert('Saved. Now sign in.');
+};
+
+$('loginBtn').onclick = async () => {
+  $('loginErr').textContent = '';
+  const { data, error } = await sb.auth.signInWithPassword({ email: $('email').value, password: $('password').value });
+  if (error) { $('loginErr').textContent = error.message; return; }
+  const { data: adminRow } = await sb.from('admins').select('user_id').eq('user_id', data.user.id).maybeSingle();
+  if (!adminRow) { $('loginErr').textContent = 'Signed in, but this user is not in the admins table.'; return; }
+  $('who').textContent = data.user.email;
+  $('loginCard').classList.add('hidden');
+  $('listCard').classList.remove('hidden');
+  loadList();
+};
+
+async function loadList() {
+  const f = $('statusFilter').value;
+  let q = sb.from('businesses').select('*').order('updated_at', { ascending: false });
+  if (f !== 'all') q = q.eq('verification_status', f);
+  const { data, error } = await q;
+  if (error) { $('listEmpty').textContent = error.message; return; }
+  $('bizRows').innerHTML = data.map(b => `<tr class="row" data-id="${b.id}">
+    <td>${esc(b.trading_name)}</td><td>${esc(b.business_type)}</td><td>${esc(b.category || '')}</td>
+    <td><span class="badge ${b.verification_status}">${b.verification_status}</span></td>
+    <td>${new Date(b.updated_at).toLocaleString()}</td></tr>`).join('');
+  $('listEmpty').textContent = data.length ? '' : 'Nothing here.';
+  document.querySelectorAll('tr.row').forEach(tr => tr.onclick = () => openDetail(tr.dataset.id));
+}
+$('statusFilter').onchange = loadList;
+
+async function openDetail(id) {
+  const { data: b } = await sb.from('businesses').select('*').eq('id', id).single();
+  current = b;
+  $('listCard').classList.add('hidden'); $('detailCard').classList.remove('hidden');
+  $('dTitle').textContent = `${b.trading_name} (${b.legal_name})`;
+  $('dBody').innerHTML = `
+    <p><b>Type:</b> ${esc(b.business_type)} · <b>Mode:</b> ${esc(b.seller_mode || '')} · <b>CA ID:</b> ${esc(b.ca_business_id || '—')}</p>
+    <p><b>ORC:</b> ${esc(b.orc_number || '—')} · <b>TIN:</b> ${esc(b.tin || '—')} · <b>VAT registered:</b> ${b.vat_registered ? 'Yes' : 'No'}</p>
+    <p><b>Address:</b> ${esc(b.address || '—')} · <b>Category:</b> ${esc(b.category || '—')}</p>
+    <p><b>Contact:</b> ${esc(b.contact_phone || '—')} ${esc(b.contact_email || '')}</p>
+    <p><b>Status:</b> <span class="badge ${b.verification_status}">${b.verification_status}</span>
+       ${b.verification_note ? '· <i>' + esc(b.verification_note) + '</i>' : ''}</p>`;
+  $('dNote').value = b.verification_note || '';
+  const { data: docs } = await sb.from('verification_documents').select('*').eq('business_id', id);
+  $('dDocs').innerHTML = '';
+  if (!docs || !docs.length) $('dDocs').innerHTML = '<p class="muted">No documents on file.</p>';
+  for (const d of docs || []) {
+    const { data: signed } = await sb.storage.from('verification-docs').createSignedUrl(d.storage_path, 600);
+    const div = document.createElement('div');
+    div.innerHTML = `<b>${esc(d.doc_type)}</b>${signed?.signedUrl ? `<img class="doc" src="${signed.signedUrl}">` : ' (could not load)'}`;
+    $('dDocs').appendChild(div);
+  }
+}
+$('backBtn').onclick = () => { $('detailCard').classList.add('hidden'); $('listCard').classList.remove('hidden'); loadList(); };
+
+async function decide(status) {
+  const note = $('dNote').value.trim();
+  if (status === 'rejected' && !note) { $('dErr').textContent = 'A note is required when rejecting — the seller needs to know what to fix.'; return; }
+  const { error } = await sb.from('businesses')
+    .update({ verification_status: status, verification_note: note || null, updated_at: new Date().toISOString() })
+    .eq('id', current.id);
+  if (error) { $('dErr').textContent = error.message; return; }
+  $('backBtn').click();
+}
+$('approveBtn').onclick = () => decide('verified');
+$('rejectBtn').onclick = () => decide('rejected');
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+connect();
+</script>
+</body>
+</html>
