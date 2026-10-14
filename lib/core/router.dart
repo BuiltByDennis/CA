@@ -11,6 +11,7 @@ import '../features/shared/history_screen.dart';
 import '../features/verification/verification_screen.dart';
 import '../features/analytics/analytics_screen.dart';
 import '../features/staff/staff_screen.dart';
+import '../features/tax/tax_report_screen.dart';
 
 final caRouter = GoRouter(routes: [
   GoRoute(path: '/', builder: (context, state) => const AuthGate()),
@@ -30,4 +31,5 @@ final caRouter = GoRouter(routes: [
   GoRoute(path: '/seller-manual/verify', builder: (context, state) => const VerificationScreen()),
   GoRoute(path: '/seller/analytics', builder: (context, state) => const AnalyticsScreen()),
   GoRoute(path: '/seller/staff', builder: (context, state) => const StaffScreen()),
+  GoRoute(path: '/seller/tax', builder: (context, state) => const TaxReportScreen()),
 ]);
