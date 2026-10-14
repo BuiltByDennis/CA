@@ -47,4 +47,18 @@ class SellerKeyService {
     final suffix = List.generate(8, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
     return 'r${DateTime.now().millisecondsSinceEpoch}-$suffix';
   }
+
+  /// Current signing seed for this business (for CAKEYBACKUP1 export), or null.
+  static Future<List<int>?> seedFor(String businessId) async {
+    final signer = await signerFor(businessId);
+    final kp = await signer.keyPairForBackup();
+    return kp;
+  }
+
+  /// Restore a signing key from a CAKEYBACKUP1 seed (change-phone recovery).
+  static Future<void> importSeed(String businessId, List<int> seed) async {
+    await _storage.write(
+        key: _seedKey(businessId),
+        value: base64Url.encode(seed).replaceAll('=', ''));
+  }
 }
