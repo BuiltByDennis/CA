@@ -9,6 +9,8 @@ import '../features/seller_manual/manual_dashboard.dart';
 import '../features/seller_manual/new_receipt_screen.dart';
 import '../features/shared/history_screen.dart';
 import '../features/verification/verification_screen.dart';
+import '../features/analytics/analytics_screen.dart';
+import '../features/staff/staff_screen.dart';
 
 final caRouter = GoRouter(routes: [
   GoRoute(path: '/', builder: (context, state) => const AuthGate()),
@@ -26,4 +28,6 @@ final caRouter = GoRouter(routes: [
   GoRoute(path: '/seller-manual/key', builder: (context, state) => const SellerKeyScreen()),
   GoRoute(path: '/seller-manual/history', builder: (context, state) => const HistoryScreen(title: 'Receipt History', direction: 'issued')),
   GoRoute(path: '/seller-manual/verify', builder: (context, state) => const VerificationScreen()),
+  GoRoute(path: '/seller/analytics', builder: (context, state) => const AnalyticsScreen()),
+  GoRoute(path: '/seller/staff', builder: (context, state) => const StaffScreen()),
 ]);
