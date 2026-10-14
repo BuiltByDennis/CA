@@ -6,12 +6,14 @@ import '../features/buyer/scan_screen.dart';
 import '../features/seller_integrated/integrated_dashboard.dart';
 import '../features/seller_integrated/capture_screen.dart';
 import '../features/seller_manual/manual_dashboard.dart';
+import '../features/seller_manual/design_screen.dart';
 import '../features/seller_manual/new_receipt_screen.dart';
 import '../features/shared/history_screen.dart';
 import '../features/verification/verification_screen.dart';
 import '../features/analytics/analytics_screen.dart';
 import '../features/staff/staff_screen.dart';
 import '../features/tax/tax_report_screen.dart';
+import '../features/help/help_feedback_screen.dart';
 
 final caRouter = GoRouter(routes: [
   GoRoute(path: '/', builder: (context, state) => const AuthGate()),
@@ -32,4 +34,5 @@ final caRouter = GoRouter(routes: [
   GoRoute(path: '/seller/analytics', builder: (context, state) => const AnalyticsScreen()),
   GoRoute(path: '/seller/staff', builder: (context, state) => const StaffScreen()),
   GoRoute(path: '/seller/tax', builder: (context, state) => const TaxReportScreen()),
+  GoRoute(path: '/help', builder: (context, state) => const HelpFeedbackScreen()),
 ]);
