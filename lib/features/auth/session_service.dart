@@ -1,6 +1,4 @@
-import 'dart:convert';
-import 'dart:math';
-import 'package:cryptography/cryptography.dart';
+import '../../core/staff/staff_logic.dart' as staff;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Local PIN auth — offline by design (plan Phase 1).
@@ -13,13 +11,17 @@ class SessionService {
   static const _hashKey = 'ca_pin_hash';
   static bool unlocked = false;
 
-  static Future<String> _hash(String pin, String salt) async {
-    final h = await Sha256().hash(utf8.encode('$salt:$pin'));
-    return base64Url.encode(h.bytes);
-  }
+  static Future<String> _hash(String pin, String salt) =>
+      staff.hashPin(pin, salt);
+
+  /// Who is using the app right now (owner or a staff member).
+  static ({String name, String role})? currentUser;
+
+  static String get currentRole => currentUser?.role ?? staff.roleOwner;
+  static String get currentUserName => currentUser?.name ?? 'Owner';
 
   static Future<void> setPin(String pin) async {
-    final salt = List.generate(16, (_) => Random.secure().nextInt(256)).join('-');
+    final salt = staff.newPinSalt();
     await _storage.write(key: _saltKey, value: salt);
     await _storage.write(key: _hashKey, value: await _hash(pin, salt));
     unlocked = true;
@@ -32,8 +34,19 @@ class SessionService {
     final expected = await _storage.read(key: _hashKey);
     if (salt == null || expected == null) return false;
     unlocked = await _hash(pin, salt) == expected;
+    if (unlocked) {
+      currentUser = (name: 'Owner', role: staff.roleOwner);
+    }
     return unlocked;
   }
 
-  static void lock() => unlocked = false;
+  static void unlockAsStaff(String name, String role) {
+    unlocked = true;
+    currentUser = (name: name, role: role);
+  }
+
+  static void lock() {
+    unlocked = false;
+    currentUser = null;
+  }
 }
