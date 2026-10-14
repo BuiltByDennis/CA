@@ -52,3 +52,8 @@ verification, history — runs from the phone's local database.
    pushes receipt backups + verification submissions, pulls verification
    status, and caches verified sellers. The seller's public key is published
    to the registry automatically once their business is Verified and they sync.
+
+## Phase 6 addition (pilot feedback)
+Run `supabase/schema_v3_phase6.sql` (feedback table: users can insert,
+admins can read). Feedback from the app's Help & Feedback screen lands
+there; read it in the Table Editor or SQL Editor.
