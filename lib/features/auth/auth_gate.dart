@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/db/app_db.dart';
 import '../../core/models.dart';
 import '../../core/services.dart';
+import '../../core/staff/staff_logic.dart' as staff_logic;
 import 'session_service.dart';
 
 /// Gate order: no profile -> create account; profile + locked -> PIN unlock;
@@ -25,7 +26,7 @@ class _AuthGateState extends State<AuthGate> {
           }
           final profile = snap.data;
           if (profile == null) return const CreateAccountScreen();
-          if (!SessionService.unlocked) return UnlockScreen(profile: profile);
+          if (!SessionService.unlocked) return PersonPickerScreen(profile: profile);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) context.go('/home');
           });
@@ -109,18 +110,66 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
 }
 
-class UnlockScreen extends StatefulWidget {
-  const UnlockScreen({super.key, required this.profile});
+class PersonPickerScreen extends StatelessWidget {
+  const PersonPickerScreen({super.key, required this.profile});
   final ProfileRow profile;
+
+  void _openPin(BuildContext context, String label, Future<bool> Function(String) verify) {
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => PinEntryScreen(label: label, verify: verify)));
+  }
+
   @override
-  State<UnlockScreen> createState() => _UnlockScreenState();
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Who is using CA?')),
+        body: FutureBuilder<List<StaffMemberRow>>(
+          future: AppServices.db.staffList(),
+          builder: (context, snap) {
+            final staff = (snap.data ?? const <StaffMemberRow>[])
+                .where((s) => s.active)
+                .toList();
+            return ListView(padding: const EdgeInsets.all(20), children: [
+              Text('Hello — tap your name and enter your PIN.',
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 16),
+              Card(child: ListTile(
+                leading: const Icon(Icons.person),
+                title: Text(profile.name),
+                subtitle: const Text('Owner'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _openPin(context, profile.name, SessionService.tryUnlock),
+              )),
+              for (final s in staff)
+                Card(child: ListTile(
+                  leading: const Icon(Icons.badge_outlined),
+                  title: Text(s.name),
+                  subtitle: Text(staff_logic.roleLabel(s.role)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _openPin(context, s.name, (pin) async {
+                    final ok = await staff_logic.verifyPin(pin, s.pinSalt, s.pinHash);
+                    if (ok) SessionService.unlockAsStaff(s.name, s.role);
+                    return ok;
+                  }),
+                )),
+            ]);
+          },
+        ),
+      );
 }
 
-class _UnlockScreenState extends State<UnlockScreen> {
+class PinEntryScreen extends StatefulWidget {
+  const PinEntryScreen({super.key, required this.label, required this.verify});
+  final String label;
+  final Future<bool> Function(String) verify;
+  @override
+  State<PinEntryScreen> createState() => _PinEntryScreenState();
+}
+
+class _PinEntryScreenState extends State<PinEntryScreen> {
   final _pin = TextEditingController();
   String? _error;
-  Future<void> _unlock() async {
-    if (await SessionService.tryUnlock(_pin.text.trim())) {
+  Future<void> _go() async {
+    if (await widget.verify(_pin.text.trim())) {
       if (mounted) context.go('/home');
     } else {
       setState(() => _error = 'Wrong PIN. Try again.');
@@ -129,18 +178,17 @@ class _UnlockScreenState extends State<UnlockScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Welcome back')),
+        appBar: AppBar(title: Text(widget.label)),
         body: ListView(padding: const EdgeInsets.all(20), children: [
-          Text('Hello, ${widget.profile.name}', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 16),
-          TextField(controller: _pin, keyboardType: TextInputType.number, obscureText: true,
+          TextField(controller: _pin, keyboardType: TextInputType.number,
+              obscureText: true, autofocus: true,
               decoration: const InputDecoration(labelText: 'Enter your PIN'),
-              onSubmitted: (_) => _unlock()),
+              onSubmitted: (_) => _go()),
           if (_error != null)
             Padding(padding: const EdgeInsets.only(top: 12),
                 child: Text(_error!, style: const TextStyle(color: Colors.red))),
           const SizedBox(height: 20),
-          FilledButton(onPressed: _unlock, child: const Text('Open CA')),
+          FilledButton(onPressed: _go, child: const Text('Open CA')),
         ]),
       );
 }
