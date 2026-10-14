@@ -30,6 +30,20 @@ class ReceiptSigner {
     return 'CA1.$payloadB64.$sigB64';
   }
 
+  static List<int> b64Decode(String s) => _b64d(s);
+
+  /// Decodes the payload WITHOUT checking the signature (display + routing).
+  /// Never present a receipt as verified from this alone — use [verify].
+  static Map<String, dynamic>? decodePayloadUnverified(String qrText) {
+    final parts = qrText.trim().split('.');
+    if (parts.length != 3 || parts[0] != 'CA1') return null;
+    try {
+      return jsonDecode(utf8.decode(_b64d(parts[1]))) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static List<int> _b64d(String s) =>
       base64Url.decode(s + '=' * ((4 - s.length % 4) % 4));
 
