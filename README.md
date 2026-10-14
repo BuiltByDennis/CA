@@ -18,13 +18,15 @@ Sellers register their business and get **verified** before they can issue signe
 4. **OCR never auto-issues.** A human approves every captured receipt.
 5. **Tax rates are config, never hard-coded.**
 
-## Status — Phase 0 (2026-10-11)
+## Status
 - [x] Phased build plan approved (`docs/BUILD_PLAN.md`)
 - [x] App scaffold: role picker → 3 navigable dashboards, shared grouped History
 - [x] QR Payload Spec v1 + working Ed25519 signer/verifier (`lib/core/receipt_signer.dart`)
 - [x] Manual seller demo: New Receipt screen issues a real signed QR from a sample receipt
 - [x] Supabase schema v1 draft (`supabase/schema.sql`)
-- [ ] Phase 1: real auth (phone + PIN), Drift DB, real New Receipt form, real scanner — exit test: a sale completed on two phones in airplane mode in under a minute
+- [x] Phase 1 (2026-10-11): local account + PIN auth (offline), Drift DB, real New Receipt form (items/tax presets/payment -> persistent seller key -> signed QR -> saved), real buyer scanner (mobile_scanner) with seller-key pairing QR + offline verify/save, DB-backed grouped History, Supabase config layer (docs/CONNECT_SUPABASE.md)
+- [x] Phase 2 (2026-10-14): integrated-seller Capture — on-device ML Kit OCR, pure-Dart receipt parser (11 parser tests: totals + receipt numbers correct on 9/9 clean samples, garbled sample flagged), Review & Approve screen with check-this highlighting and printed-vs-CA total comparison, Drift v2 (original receipt no.), signed QR on approval (docs/PHASE2_NOTES.md)
+- [ ] Phase 1 exit test (needs Dennis + 2 phones): create Supabase config per docs/CONNECT_SUPABASE.md, install on seller + buyer phones, seller issues, buyer scans Seller Key then receipt — in airplane mode, under a minute
 
 ## Run it
 ```bash
