@@ -83,7 +83,7 @@ class _OnboardingCardState extends State<OnboardingCard> {
                   style: TextStyle(
                       decoration: s.done ? TextDecoration.lineThrough : null)),
               trailing: s.done ? null : const Icon(Icons.chevron_right),
-              onTap: s.done ? null : () => context.go(s.route),
+              onTap: s.done ? null : () => context.push(s.route),
             ),
         ]),
       ),
