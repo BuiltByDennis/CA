@@ -26,6 +26,12 @@ class ManualDashboard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
+            icon: const Icon(Icons.verified_outlined),
+            label: const Text('Business Verification'),
+            onPressed: () => context.go('/seller-manual/verify'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
             icon: const Icon(Icons.key),
             label: const Text('My Seller Key (for buyers)'),
             onPressed: () => context.go('/seller-manual/key'),
