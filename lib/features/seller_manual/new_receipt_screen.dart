@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/db/app_db.dart';
@@ -10,6 +11,7 @@ import '../../core/tax_presets.dart';
 import '../../core/sync/sync_payloads.dart';
 import '../../core/staff/staff_logic.dart' as staff_logic;
 import '../../core/printing/print_service.dart';
+import '../../core/design/receipt_design.dart';
 import '../printing/printer_screen.dart';
 import '../../core/share_receipt.dart';
 
@@ -30,6 +32,19 @@ class _ItemRow {
 }
 
 class _NewReceiptScreenState extends State<NewReceiptScreen> {
+  @override
+  void initState() {
+    super.initState();
+    DesignStore.load().then((d) {
+      if (d != null && mounted) {
+        setState(() {
+          _applyTax = d.applyTaxByDefault;
+          _payment = d.defaultPayment;
+        });
+      }
+    });
+  }
+
   final _buyer = TextEditingController();
   final _rows = <_ItemRow>[_ItemRow()];
   String _payment = 'Cash';
@@ -83,7 +98,9 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
     setState(() => _issuing = true);
     final profile = await AppServices.db.getProfile();
     final businessId = profile?.businessId ?? 'biz-demo';
-    final businessName = profile?.businessName ?? profile?.name ?? 'My Business';
+    final design = await DesignStore.load();
+    final businessName = design?.businessDisplayName ??
+        profile?.businessName ?? profile?.name ?? 'My Business';
     final seq = await AppServices.db.issuedCount() + 1;
     final receipt = Receipt(
       id: SellerKeyService.newReceiptId(),
@@ -282,6 +299,8 @@ class _SellerKeyScreenState extends State<SellerKeyScreen> {
     final seed = await SellerKeyService.seedFor(businessId);
     if (seed == null || !mounted) return;
     final backup = exportKeyBackup(seed);
+    await const FlutterSecureStorage().write(key: 'key_backed_up', value: 'yes');
+    if (!mounted) return;
     await showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
