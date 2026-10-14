@@ -121,6 +121,8 @@ class _ReviewCaptureScreenState extends State<ReviewCaptureScreen> {
     );
     final signer = await SellerKeyService.signerFor(businessId);
     final qr = await signer.signReceipt(receipt);
+    final sellerVerified =
+        (await AppServices.db.getVerification())?.status == 'verified';
     await AppServices.db.saveReceipt(
       ReceiptsCompanion.insert(
         id: receipt.id, receiptNo: receipt.receiptNo, sellerBusinessId: businessId,
@@ -138,7 +140,8 @@ class _ReviewCaptureScreenState extends State<ReviewCaptureScreen> {
     );
     if (!mounted) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
-        builder: (_) => IssuedQrScreen(qr: qr, receipt: receipt)));
+        builder: (_) => IssuedQrScreen(
+            qr: qr, receipt: receipt, sellerVerified: sellerVerified)));
   }
 
   @override
