@@ -6,7 +6,11 @@ plugins {
 
 android {
     namespace = "com.careceipt.ca_receipt"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android (Phase 4, Bluetooth printing permissions)
+    // requires compileSdk 37; flutter.compileSdkVersion is 36 on Flutter
+    // 3.47.6. The AAR metadata check fails the release build otherwise.
+    // targetSdk stays at the Flutter default — only compilation moves up.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
