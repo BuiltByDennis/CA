@@ -37,3 +37,18 @@ Phase 3 — Phase 1 only wires and verifies the connection.
 ## What if I do nothing?
 Nothing breaks. Every Phase 1 feature — accounts, PIN, issuing, scanning,
 verification, history — runs from the phone's local database.
+
+## Phase 3 additions (verification + sync)
+1. **Run the v2 SQL**: SQL Editor → paste `supabase/schema_v2_phase3.sql` → Run.
+   It adds the `ca_business_id` linkage, the `admins` table, complete RLS
+   policies, the verified-businesses public read (buyer registry), and the
+   private `verification-docs` storage bucket.
+2. **Enable Anonymous sign-ins**: Authentication → Sign In / Providers →
+   Anonymous → Enable. The app links each device to Supabase anonymously for
+   backup/verification sync; the local PIN remains the app's lock.
+3. **Set up the admin panel**: see `admin/README.md` (create an auth user,
+   insert them into `admins`, open `admin/index.html`).
+4. In the app: Home → **Sync Now** (or Business Verification → Sync Now)
+   pushes receipt backups + verification submissions, pulls verification
+   status, and caches verified sellers. The seller's public key is published
+   to the registry automatically once their business is Verified and they sync.
