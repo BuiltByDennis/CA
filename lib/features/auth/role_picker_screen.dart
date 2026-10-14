@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/i18n/strings.dart';
 import '../../core/models.dart';
 import '../../core/supabase_config.dart';
 import '../../core/sync/sync_service.dart';
@@ -11,17 +12,31 @@ class RolePickerScreen extends StatelessWidget {
   const RolePickerScreen({super.key});
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('CA — Welcome'), actions: [
+        appBar: AppBar(title: Text(tr('welcome')), actions: [
           IconButton(icon: const Icon(Icons.lock), tooltip: 'Lock app',
               onPressed: () { SessionService.lock(); context.go('/'); }),
         ]),
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Text('How will you use CA?',
+            if (SessionService.currentUser != null)
+              Padding(padding: const EdgeInsets.only(bottom: 8),
+                  child: Chip(label: Text('${SessionService.currentUserName} · ${SessionService.currentRole}'))),
+            Text(tr('howUse'),
                 style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
-            const Text('One account. Pick one to start — you can add the others later.'),
+            Text(tr('oneAccount')),
+            const SizedBox(height: 12),
+            Row(children: [
+              Text('${tr('language')}: '),
+              ChoiceChip(label: const Text('English'),
+                  selected: LanguageService.code.value == 'en',
+                  onSelected: (_) => LanguageService.set('en')),
+              const SizedBox(width: 8),
+              ChoiceChip(label: const Text('Twi'),
+                  selected: LanguageService.code.value == 'tw',
+                  onSelected: (_) => LanguageService.set('tw')),
+            ]),
             const SizedBox(height: 24),
             Card(child: ListTile(
               leading: const Icon(Icons.cloud_outlined),
@@ -35,7 +50,7 @@ class RolePickerScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 8),
                 child: FilledButton.tonalIcon(
                   icon: const Icon(Icons.sync),
-                  label: const Text('Sync Now — backup, verification, verified sellers'),
+                  label: Text(tr('syncNow')),
                   onPressed: () async {
                     final report = await SyncService.syncNow();
                     if (context.mounted) {
@@ -55,7 +70,11 @@ class RolePickerScreen extends StatelessWidget {
                     UserMode.sellerIntegrated => Icons.document_scanner,
                     UserMode.sellerManual => Icons.edit_note,
                   }),
-                  label: Text(mode.label),
+                  label: Text(switch (mode) {
+                    UserMode.buyer => tr('buyer'),
+                    UserMode.sellerIntegrated => tr('sellerIntegrated'),
+                    UserMode.sellerManual => tr('sellerManual'),
+                  }),
                   onPressed: () => context.go(mode.dashboardRoute),
                 ),
               ),
