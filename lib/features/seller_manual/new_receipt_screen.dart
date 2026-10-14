@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/db/app_db.dart';
@@ -233,6 +234,21 @@ class IssuedQrScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text('Receipt ${receipt.receiptNo}')),
         body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          FutureBuilder<ReceiptDesign?>(
+            future: DesignStore.load(),
+            builder: (context, snap) {
+              final logo = snap.data?.logoPath;
+              final footer = snap.data?.footerNote;
+              return Column(children: [
+                if (logo != null && File(logo).existsSync())
+                  Padding(padding: const EdgeInsets.only(bottom: 10),
+                      child: Image.file(File(logo), height: 56)),
+                if (footer != null && footer.isNotEmpty)
+                  Padding(padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(footer, style: const TextStyle(color: Colors.grey))),
+              ]);
+            },
+          ),
           QrImageView(data: qr, size: 280),
           const SizedBox(height: 12),
           Text('${receipt.sellerName} · ${formatGhs(receipt.totalPesewas)}',
