@@ -549,6 +549,18 @@ class $ReceiptsTable extends Receipts
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _originalReceiptNoMeta = const VerificationMeta(
+    'originalReceiptNo',
+  );
+  @override
+  late final GeneratedColumn<String> originalReceiptNo =
+      GeneratedColumn<String>(
+        'original_receipt_no',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _verifiedMeta = const VerificationMeta(
     'verified',
   );
@@ -578,6 +590,7 @@ class $ReceiptsTable extends Receipts
     source,
     qrText,
     direction,
+    originalReceiptNo,
     verified,
   ];
   @override
@@ -693,6 +706,15 @@ class $ReceiptsTable extends Receipts
     } else if (isInserting) {
       context.missing(_directionMeta);
     }
+    if (data.containsKey('original_receipt_no')) {
+      context.handle(
+        _originalReceiptNoMeta,
+        originalReceiptNo.isAcceptableOrUnknown(
+          data['original_receipt_no']!,
+          _originalReceiptNoMeta,
+        ),
+      );
+    }
     if (data.containsKey('verified')) {
       context.handle(
         _verifiedMeta,
@@ -756,6 +778,10 @@ class $ReceiptsTable extends Receipts
         DriftSqlType.string,
         data['${effectivePrefix}direction'],
       )!,
+      originalReceiptNo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_receipt_no'],
+      ),
       verified: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}verified'],
@@ -782,6 +808,7 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
   final String source;
   final String qrText;
   final String direction;
+  final String? originalReceiptNo;
   final bool verified;
   const ReceiptRow({
     required this.id,
@@ -796,6 +823,7 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
     required this.source,
     required this.qrText,
     required this.direction,
+    this.originalReceiptNo,
     required this.verified,
   });
   @override
@@ -815,6 +843,9 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
     map['source'] = Variable<String>(source);
     map['qr_text'] = Variable<String>(qrText);
     map['direction'] = Variable<String>(direction);
+    if (!nullToAbsent || originalReceiptNo != null) {
+      map['original_receipt_no'] = Variable<String>(originalReceiptNo);
+    }
     map['verified'] = Variable<bool>(verified);
     return map;
   }
@@ -835,6 +866,9 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
       source: Value(source),
       qrText: Value(qrText),
       direction: Value(direction),
+      originalReceiptNo: originalReceiptNo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalReceiptNo),
       verified: Value(verified),
     );
   }
@@ -857,6 +891,9 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
       source: serializer.fromJson<String>(json['source']),
       qrText: serializer.fromJson<String>(json['qrText']),
       direction: serializer.fromJson<String>(json['direction']),
+      originalReceiptNo: serializer.fromJson<String?>(
+        json['originalReceiptNo'],
+      ),
       verified: serializer.fromJson<bool>(json['verified']),
     );
   }
@@ -876,6 +913,7 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
       'source': serializer.toJson<String>(source),
       'qrText': serializer.toJson<String>(qrText),
       'direction': serializer.toJson<String>(direction),
+      'originalReceiptNo': serializer.toJson<String?>(originalReceiptNo),
       'verified': serializer.toJson<bool>(verified),
     };
   }
@@ -893,6 +931,7 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
     String? source,
     String? qrText,
     String? direction,
+    Value<String?> originalReceiptNo = const Value.absent(),
     bool? verified,
   }) => ReceiptRow(
     id: id ?? this.id,
@@ -907,6 +946,9 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
     source: source ?? this.source,
     qrText: qrText ?? this.qrText,
     direction: direction ?? this.direction,
+    originalReceiptNo: originalReceiptNo.present
+        ? originalReceiptNo.value
+        : this.originalReceiptNo,
     verified: verified ?? this.verified,
   );
   ReceiptRow copyWithCompanion(ReceiptsCompanion data) {
@@ -933,6 +975,9 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
       source: data.source.present ? data.source.value : this.source,
       qrText: data.qrText.present ? data.qrText.value : this.qrText,
       direction: data.direction.present ? data.direction.value : this.direction,
+      originalReceiptNo: data.originalReceiptNo.present
+          ? data.originalReceiptNo.value
+          : this.originalReceiptNo,
       verified: data.verified.present ? data.verified.value : this.verified,
     );
   }
@@ -952,6 +997,7 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
           ..write('source: $source, ')
           ..write('qrText: $qrText, ')
           ..write('direction: $direction, ')
+          ..write('originalReceiptNo: $originalReceiptNo, ')
           ..write('verified: $verified')
           ..write(')'))
         .toString();
@@ -971,6 +1017,7 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
     source,
     qrText,
     direction,
+    originalReceiptNo,
     verified,
   );
   @override
@@ -989,6 +1036,7 @@ class ReceiptRow extends DataClass implements Insertable<ReceiptRow> {
           other.source == this.source &&
           other.qrText == this.qrText &&
           other.direction == this.direction &&
+          other.originalReceiptNo == this.originalReceiptNo &&
           other.verified == this.verified);
 }
 
@@ -1005,6 +1053,7 @@ class ReceiptsCompanion extends UpdateCompanion<ReceiptRow> {
   final Value<String> source;
   final Value<String> qrText;
   final Value<String> direction;
+  final Value<String?> originalReceiptNo;
   final Value<bool> verified;
   final Value<int> rowid;
   const ReceiptsCompanion({
@@ -1020,6 +1069,7 @@ class ReceiptsCompanion extends UpdateCompanion<ReceiptRow> {
     this.source = const Value.absent(),
     this.qrText = const Value.absent(),
     this.direction = const Value.absent(),
+    this.originalReceiptNo = const Value.absent(),
     this.verified = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1036,6 +1086,7 @@ class ReceiptsCompanion extends UpdateCompanion<ReceiptRow> {
     required String source,
     required String qrText,
     required String direction,
+    this.originalReceiptNo = const Value.absent(),
     this.verified = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -1061,6 +1112,7 @@ class ReceiptsCompanion extends UpdateCompanion<ReceiptRow> {
     Expression<String>? source,
     Expression<String>? qrText,
     Expression<String>? direction,
+    Expression<String>? originalReceiptNo,
     Expression<bool>? verified,
     Expression<int>? rowid,
   }) {
@@ -1077,6 +1129,7 @@ class ReceiptsCompanion extends UpdateCompanion<ReceiptRow> {
       if (source != null) 'source': source,
       if (qrText != null) 'qr_text': qrText,
       if (direction != null) 'direction': direction,
+      if (originalReceiptNo != null) 'original_receipt_no': originalReceiptNo,
       if (verified != null) 'verified': verified,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1095,6 +1148,7 @@ class ReceiptsCompanion extends UpdateCompanion<ReceiptRow> {
     Value<String>? source,
     Value<String>? qrText,
     Value<String>? direction,
+    Value<String?>? originalReceiptNo,
     Value<bool>? verified,
     Value<int>? rowid,
   }) {
@@ -1111,6 +1165,7 @@ class ReceiptsCompanion extends UpdateCompanion<ReceiptRow> {
       source: source ?? this.source,
       qrText: qrText ?? this.qrText,
       direction: direction ?? this.direction,
+      originalReceiptNo: originalReceiptNo ?? this.originalReceiptNo,
       verified: verified ?? this.verified,
       rowid: rowid ?? this.rowid,
     );
@@ -1155,6 +1210,9 @@ class ReceiptsCompanion extends UpdateCompanion<ReceiptRow> {
     if (direction.present) {
       map['direction'] = Variable<String>(direction.value);
     }
+    if (originalReceiptNo.present) {
+      map['original_receipt_no'] = Variable<String>(originalReceiptNo.value);
+    }
     if (verified.present) {
       map['verified'] = Variable<bool>(verified.value);
     }
@@ -1179,6 +1237,7 @@ class ReceiptsCompanion extends UpdateCompanion<ReceiptRow> {
           ..write('source: $source, ')
           ..write('qrText: $qrText, ')
           ..write('direction: $direction, ')
+          ..write('originalReceiptNo: $originalReceiptNo, ')
           ..write('verified: $verified, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2490,6 +2549,7 @@ typedef $$ReceiptsTableCreateCompanionBuilder = ReceiptsCompanion Function({
   required String source,
   required String qrText,
   required String direction,
+  Value<String?> originalReceiptNo,
   Value<bool> verified,
   Value<int> rowid,
 });
@@ -2506,6 +2566,7 @@ typedef $$ReceiptsTableUpdateCompanionBuilder = ReceiptsCompanion Function({
   Value<String> source,
   Value<String> qrText,
   Value<String> direction,
+  Value<String?> originalReceiptNo,
   Value<bool> verified,
   Value<int> rowid,
 });
@@ -2598,6 +2659,11 @@ class $$ReceiptsTableFilterComposer extends Composer<_$AppDb, $ReceiptsTable> {
 
   ColumnFilters<String> get direction => $composableBuilder(
     column: $table.direction,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalReceiptNo => $composableBuilder(
+    column: $table.originalReceiptNo,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2701,6 +2767,11 @@ class $$ReceiptsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get originalReceiptNo => $composableBuilder(
+    column: $table.originalReceiptNo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get verified => $composableBuilder(
     column: $table.verified,
     builder: (column) => ColumnOrderings(column),
@@ -2761,6 +2832,11 @@ class $$ReceiptsTableAnnotationComposer
 
   GeneratedColumn<String> get direction =>
       $composableBuilder(column: $table.direction, builder: (column) => column);
+
+  GeneratedColumn<String> get originalReceiptNo => $composableBuilder(
+    column: $table.originalReceiptNo,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get verified =>
       $composableBuilder(column: $table.verified, builder: (column) => column);
@@ -2831,6 +2907,7 @@ class $$ReceiptsTableTableManager
                 Value<String> source = const Value.absent(),
                 Value<String> qrText = const Value.absent(),
                 Value<String> direction = const Value.absent(),
+                Value<String?> originalReceiptNo = const Value.absent(),
                 Value<bool> verified = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReceiptsCompanion(
@@ -2846,6 +2923,7 @@ class $$ReceiptsTableTableManager
                 source: source,
                 qrText: qrText,
                 direction: direction,
+                originalReceiptNo: originalReceiptNo,
                 verified: verified,
                 rowid: rowid,
               ),
@@ -2863,6 +2941,7 @@ class $$ReceiptsTableTableManager
                 required String source,
                 required String qrText,
                 required String direction,
+                Value<String?> originalReceiptNo = const Value.absent(),
                 Value<bool> verified = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReceiptsCompanion.insert(
@@ -2878,6 +2957,7 @@ class $$ReceiptsTableTableManager
                 source: source,
                 qrText: qrText,
                 direction: direction,
+                originalReceiptNo: originalReceiptNo,
                 verified: verified,
                 rowid: rowid,
               ),
