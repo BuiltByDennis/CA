@@ -30,6 +30,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   final _phone = TextEditingController();
   final _email = TextEditingController();
   final _ghanaCard = TextEditingController();
+  final _referredBy = TextEditingController();
   String _type = 'sole_prop';
   bool _vat = false;
   String _status = 'unverified';
@@ -66,6 +67,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
       _phone.text = v.contactPhone ?? '';
       _email.text = v.contactEmail ?? '';
       _ghanaCard.text = v.ghanaCardNo ?? '';
+      _referredBy.text = v.referredBy ?? '';
       _type = v.businessType;
       _vat = v.vatRegistered;
       _status = v.status;
@@ -117,6 +119,8 @@ class _VerificationScreenState extends State<VerificationScreen> {
       contactEmail: Value(_email.text.trim().isEmpty ? null : _email.text.trim()),
       ghanaCardNo:
           Value(_ghanaCard.text.trim().isEmpty ? null : _ghanaCard.text.trim()),
+      referredBy:
+          Value(_referredBy.text.trim().isEmpty ? null : _referredBy.text.trim().toUpperCase()),
       status: Value(submit ? 'pending' : _status),
       submittedAtUnix: Value(submit
           ? DateTime.now().millisecondsSinceEpoch ~/ 1000
@@ -221,6 +225,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
         TextField(controller: _ghanaCard, enabled: editable,
             decoration: const InputDecoration(
                 labelText: 'Owner Ghana Card no. (stays on this phone)')),
+        TextField(controller: _referredBy, enabled: editable,
+            decoration: const InputDecoration(
+                labelText: 'Referral code (optional — if a seller invited you, e.g. CA-XXXXXX)')),
         const Divider(height: 32),
         const Text('Documents', style: TextStyle(fontWeight: FontWeight.bold)),
         for (final d in _docs)
