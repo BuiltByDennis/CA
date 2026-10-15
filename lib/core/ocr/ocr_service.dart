@@ -6,29 +6,53 @@ import 'package:path_provider/path_provider.dart';
 /// On-device OCR — Google ML Kit Text Recognition v2 (Latin script model),
 /// fully offline; no image ever leaves the phone.
 ///
-/// Fix pack (Phase 6): single-pass OCR on the raw photo missed text on
-/// real receipts (faded thermal print, shadows, small fonts). Extraction is
-/// now TWO-PASS and keeps the better result:
+/// Extraction is TWO-PASS and keeps the better result:
 ///  1. the original image as captured, then
-///  2. an enhanced copy — upscaled if small, grayscale, contrast-stretched,
-///     and slight unsharp — which recovers faded thermal print.
-/// "Better" = more alphanumeric characters extracted. The FULL raw text of
-/// the winning pass is returned for the parser (and shown in Review).
+///  2. an enhanced copy — upscaled if small, grayscale, contrast-stretched —
+///     which recovers faded thermal print.
+/// "Better" = more alphanumeric characters extracted.
+///
+/// Fix pack 2 (v0.7.1): the raw text is no longer taken as ML Kit returns
+/// it. Blocks are re-sorted into true reading order (top-to-bottom,
+/// left-to-right within a line band) from their bounding boxes — on
+/// tilted or rotated photos the default block order scrambles the items,
+/// which broke line-based parsing (wrapped items, totals) even when
+/// every word was read correctly.
 class OcrService {
   static int scoreText(String t) =>
       t.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').length;
+
+  /// Rebuilds receipt text in reading order from recognised blocks.
+  static String orderedText(RecognizedText result) {
+    final blocks = [...result.blocks]..sort((a, b) {
+        final dy = a.boundingBox.top.compareTo(b.boundingBox.top);
+        return dy != 0 ? dy : a.boundingBox.left.compareTo(b.boundingBox.left);
+      });
+    final out = StringBuffer();
+    for (final block in blocks) {
+      final lines = [...block.lines]..sort((a, b) {
+          final dy = a.boundingBox.top.compareTo(b.boundingBox.top);
+          return dy != 0 ? dy : a.boundingBox.left.compareTo(b.boundingBox.left);
+        });
+      for (final line in lines) {
+        out.writeln(line.text);
+      }
+    }
+    return out.toString().trim();
+  }
 
   static Future<String> extractText(String imagePath) async {
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     try {
       final first = await recognizer.processImage(InputImage.fromFilePath(imagePath));
-      var best = first.text;
+      var best = orderedText(first);
       try {
         final enhancedPath = await _enhance(imagePath);
         if (enhancedPath != null) {
           final second =
               await recognizer.processImage(InputImage.fromFilePath(enhancedPath));
-          if (scoreText(second.text) > scoreText(best)) best = second.text;
+          final secondText = orderedText(second);
+          if (scoreText(secondText) > scoreText(best)) best = secondText;
         }
       } catch (_) {
         // Enhancement is best-effort — the first pass result stands.
@@ -39,15 +63,13 @@ class OcrService {
     }
   }
 
-  /// Builds the enhanced copy next to the app temp dir; null if the image
+  /// Builds the enhanced copy in the app temp dir; null if the image
   /// can't be decoded (the caller then relies on pass 1 only).
   static Future<String?> _enhance(String imagePath) async {
     final bytes = await File(imagePath).readAsBytes();
     var decoded = img.decodeImage(bytes);
     if (decoded == null) return null;
-    // Bake EXIF orientation so sideways photos read upright.
     decoded = img.bakeOrientation(decoded);
-    // Upscale small images — ML Kit reads small print much better larger.
     if (decoded.width < 1400) {
       final scale = 1400 / decoded.width;
       decoded = img.copyResize(decoded,
