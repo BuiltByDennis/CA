@@ -10,12 +10,14 @@ class AnalyticsReceipt {
     required this.paymentMethod,
     required this.cashierName,
     required this.items,
+    this.branchName,
   });
   final int totalPesewas;
   final DateTime issuedAt; // local time
   final String? buyerName;
   final String paymentMethod;
   final String? cashierName;
+  final String? branchName; // Phase 7
   final List<({String name, int qty, int amountPesewas})> items;
 }
 
