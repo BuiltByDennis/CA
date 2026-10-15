@@ -49,13 +49,42 @@ class ParsedReceipt {
 }
 
 class ReceiptParser {
-  static final _moneyRe = RegExp(r'(\d{1,3}(?:,\d{3})*\.\d{2})');
-  static int _toPesewas(String s) =>
-      (double.parse(s.replaceAll(',', '')) * 100).round();
+  // Money with decimals: any-length cedis part (with or without comma
+  // groups), 1 or 2 decimal digits. v1 required exactly \d{1,3} + 2dp,
+  // which silently corrupted 4+ digit prices ('1200.50' read as '200.50')
+  // and dropped 1-decimal prices ('5.5') entirely.
+  static final _moneyRe = RegExp(r'(\d{1,3}(?:,\d{3})+|\d+)\.(\d{1,2})');
+  static int _toPesewas(String s) {
+    final parts = s.split('.');
+    final cedis = int.parse(parts[0].replaceAll(',', ''));
+    final p = parts.length > 1 ? parts[1] : '0';
+    final pesewas = p.length == 1 ? int.parse(p) * 10 : int.parse(p);
+    return cedis * 100 + pesewas;
+  }
+
+  /// OCR digit-confusion repair, scoped to money-shaped tokens ONLY
+  /// (must contain a decimal point, so words like 'Oil' or 'Milo' are
+  /// never touched): 1O.00 -> 10.00, l2.50 -> 12.50, 5.O0 -> 5.00.
+  static String fixMoneyTokens(String line) =>
+      line.replaceAllMapped(
+        RegExp(r'(?<![\w.])([0-9OoIl.,]*[.,][0-9OoIl]{1,2})(?![\w])'),
+        (m) {
+          final tok = m.group(1)!;
+          if (!RegExp(r'\d').hasMatch(tok) &&
+              !tok.contains('O') && !tok.contains('o')) {
+            return tok;
+          }
+          return tok
+              .replaceAll('O', '0')
+              .replaceAll('o', '0')
+              .replaceAll('l', '1')
+              .replaceAll('I', '1');
+        },
+      );
 
   static List<({int value, int start, int end})> _money(String line) => [
         for (final m in _moneyRe.allMatches(line))
-          (value: _toPesewas(m.group(1)!), start: m.start, end: m.end)
+          (value: _toPesewas(m.group(0)!), start: m.start, end: m.end)
       ];
 
   static final _noPatterns = <RegExp>[
@@ -80,11 +109,26 @@ class ReceiptParser {
 
   static ParsedReceipt parse(String ocrText) {
     final r = ParsedReceipt();
-    final lines = ocrText
+    final rawLines = ocrText
         .split('\n')
-        .map((l) => l.trim())
+        .map((l) => fixMoneyTokens(l.trim()))
         .where((l) => l.isNotEmpty)
         .toList();
+    // Two-line items (narrow paper): a name line with no money, immediately
+    // followed by a price-only line, belongs together. v1 dropped both.
+    final lines = <String>[];
+    for (var i = 0; i < rawLines.length; i++) {
+      final l = rawLines[i];
+      if (i + 1 < rawLines.length &&
+          _money(l).isEmpty &&
+          RegExp(r'[A-Za-z]{2,}').hasMatch(l) &&
+          _isPriceOnlyLine(rawLines[i + 1])) {
+        lines.add('$l ${rawLines[i + 1]}');
+        i++;
+      } else {
+        lines.add(l);
+      }
+    }
     if (lines.isEmpty) {
       r.warnings.add('No text was recognised in this image.');
       return r;
@@ -196,6 +240,28 @@ class ReceiptParser {
       final money = _money(l);
       if (money.isEmpty) {
         _detectPayment(low, r);
+        // Whole-cedi receipts print their totals without decimals too.
+        final trailing = RegExp(r'(\d+)\s*$').firstMatch(l);
+        final trailingPesewas =
+            trailing == null ? null : int.parse(trailing.group(1)!) * 100;
+        if (trailingPesewas != null && _isSubtotalLine(low)) {
+          r.subtotalPesewas = trailingPesewas;
+          continue;
+        }
+        if (trailingPesewas != null && _isTotalLine(low)) {
+          grandTotal = trailingPesewas;
+          continue;
+        }
+        if (trailingPesewas != null && low.contains('discount')) {
+          r.discountPesewas = trailingPesewas;
+          continue;
+        }
+        if (trailingPesewas != null && _isTaxLine(low)) {
+          r.taxPesewas += trailingPesewas;
+          continue;
+        }
+        final whole = _parseWholeCediItem(l);
+        if (whole != null) r.items.add(whole);
         continue;
       }
       final last = money.last.value;
@@ -242,6 +308,83 @@ class ReceiptParser {
     final flagged = r.items.where((i) => i.needsCheck).length;
     if (flagged > 0) r.warnings.add('$flagged item line(s) need checking (highlighted).');
     return r;
+  }
+
+  /// A line that is only a price (maybe with currency marks) — the second
+  /// half of a wrapped two-line item.
+  static bool _isPriceOnlyLine(String line) {
+    final stripped = line
+        .replaceAll(RegExp(r'(GH₵|GHS|GHc|¢)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'[\s*]'), '')
+        .trim();
+    return _moneyRe.hasMatch(stripped) &&
+        stripped.replaceAll(_moneyRe, '').replaceAll(RegExp(r'\d'), '').isEmpty;
+  }
+
+  /// Whole-cedi items (v2): many Ghana receipts print prices with no
+  /// decimals at all — 'Tomatoes 20', 'Rice 5kg 45', 'Eggs 12 30 360'
+  /// (qty, unit, amount). v1 only understood decimal money, so every such
+  /// item vanished. Conservative: needs a lettered name, sane amounts, and
+  /// never fires on keyword lines.
+  static ParsedItem? _parseWholeCediItem(String line) {
+    final low = line.toLowerCase();
+    if (_isTaxLine(low) || _isSubtotalLine(low) || _isTotalLine(low) ||
+        low.contains('discount') || low.contains('cash') ||
+        low.contains('change') || low.contains('tel') ||
+        low.contains('date') || low.contains('time') ||
+        low.contains('phone') || low.contains('account') ||
+        low.contains('customer') || low.contains('cashier') ||
+        low.contains('terminal')) {
+      return null;
+    }
+    // A line carrying a document number is metadata, never an item:
+    // 'Receipt No 77341' must not become an item priced GH₵77,341.00.
+    for (final pat in _noPatterns) {
+      if (pat.hasMatch(line)) return null;
+    }
+    final m = RegExp(r'^(.+?)\s+((?:\d+\s+)*\d+)\s*$').firstMatch(line);
+    if (m == null) return null;
+    var name = m.group(1)!.trim();
+    if (!RegExp(r'[A-Za-z]{2,}').hasMatch(name)) return null;
+    if (RegExp(r'\b(no|num|number|id|date|time)\s*[:#.]?\s*$',
+            caseSensitive: false)
+        .hasMatch(name)) {
+      return null;
+    }
+    // Names that end in a bare number ('Coke 500' = 500ml) are ambiguous;
+    // only accept if the trailing numbers still parse sanely below.
+    final nums = m.group(2)!
+        .trim()
+        .split(RegExp(r'\s+'))
+        .map(int.parse)
+        .toList();
+    int qty = 1, unit, amount;
+    if (nums.length >= 3) {
+      final a = nums[nums.length - 3], b = nums[nums.length - 2], c = nums.last;
+      if (a <= 0 || a > 999 || b <= 0 || a * b != c) return null;
+      qty = a;
+      unit = b * 100;
+      amount = c * 100;
+    } else if (nums.length == 2) {
+      // 'Name qty amount' is only trusted when amount is a multiple of the
+      // quantity is unknowable — treat as qty 1 with a note; safer: last is
+      // amount, ignore the middle as part of the name (sizes etc.).
+      name = '$name ${nums[0]}';
+      amount = nums[1] * 100;
+      unit = amount;
+    } else {
+      amount = nums.single * 100;
+      unit = amount;
+    }
+    if (amount <= 0 || amount > 100000000) return null;
+    return ParsedItem(
+      name: name,
+      qty: qty,
+      unitPricePesewas: unit,
+      amountPesewas: amount,
+      rawLine: line,
+      needsCheck: true, // whole-cedi guesses always need a human glance
+    );
   }
 
   static void _detectPayment(String low, ParsedReceipt r) {
