@@ -1,0 +1,42 @@
+name: Build iOS (unsigned check)
+
+# Proves the CA app compiles for iOS. The artifact is an UNSIGNED .app —
+# it cannot be installed on a normal iPhone until the project is signed
+# with an Apple Developer account (then switch to an IPA export flow).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'lib/**'
+      - 'pubspec.yaml'
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.6'
+          channel: 'stable'
+      - name: Dependencies
+        run: flutter pub get
+      - name: Generate Drift code (app_db.g.dart is gitignored)
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Analyze + test gate
+        run: |
+          flutter analyze
+          flutter test
+      - name: Build iOS (no code signing)
+        run: flutter build ios --release --no-codesign
+      - name: Package .app
+        run: |
+          cd build/ios/iphoneos
+          zip -r ca-ios-unsigned.zip Runner.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ca-ios-unsigned-app
+          path: build/ios/iphoneos/ca-ios-unsigned.zip
+          retention-days: 14
