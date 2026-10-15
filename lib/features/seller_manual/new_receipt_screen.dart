@@ -2,11 +2,13 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../../core/db/app_db.dart';
 import '../../core/models.dart';
 import '../../core/seller_key_service.dart';
 import '../../core/branches/branch_logic.dart';
+import '../../core/catalogue/catalogue.dart';
+import '../../core/db/app_db.dart';
 import '../../core/momo/momo.dart';
 import '../../core/services.dart';
 import '../auth/session_service.dart';
@@ -35,9 +37,14 @@ class _ItemRow {
 }
 
 class _NewReceiptScreenState extends State<NewReceiptScreen> {
+  List<CatalogueItemRow> _catalogue = [];
   @override
   void initState() {
     super.initState();
+    CatalogueService.seedIfFirstUse().then((_) async {
+      final items = await AppServices.db.catalogueList();
+      if (mounted) setState(() => _catalogue = items);
+    });
     DesignStore.load().then((d) {
       if (d != null && mounted) {
         setState(() {
@@ -159,14 +166,41 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
           TextField(controller: _buyer,
               decoration: const InputDecoration(labelText: 'Buyer name (optional)')),
           const SizedBox(height: 8),
-          Wrap(spacing: 8, children: [
-            for (final f in favouriteItemNames.take(6))
-              ActionChip(label: Text(f), onPressed: () => setState(() {
+          if (_catalogue.isNotEmpty) ...[
+            Row(children: [
+              const Expanded(child: Text('My items — tap to add',
+                  style: TextStyle(fontWeight: FontWeight.w600))),
+              TextButton(
+                onPressed: () => context.push('/seller-manual/items'),
+                child: const Text('Customise'),
+              ),
+            ]),
+            Wrap(spacing: 8, runSpacing: 4, children: [
+              for (final c in _catalogue)
+                ActionChip(
+                  label: Text(c.unitPricePesewas > 0
+                      ? '${c.name} · ${formatGhs(c.unitPricePesewas)}'
+                      : c.name),
+                  onPressed: () => setState(() {
                     final row = _rows.firstWhere(
                         (r) => r.name.text.isEmpty, orElse: () { final n = _ItemRow(); _rows.add(n); return n; });
-                    row.name.text = f;
-                  })),
-          ]),
+                    row.name.text = c.name;
+                    if (c.unitPricePesewas > 0) {
+                      row.price.text = (c.unitPricePesewas / 100).toStringAsFixed(2);
+                    }
+                    if (row.qty.text.isEmpty) row.qty.text = '1';
+                  }),
+                ),
+            ]),
+          ] else
+            Wrap(spacing: 8, children: [
+              for (final f in favouriteItemNames.take(6))
+                ActionChip(label: Text(f), onPressed: () => setState(() {
+                      final row = _rows.firstWhere(
+                          (r) => r.name.text.isEmpty, orElse: () { final n = _ItemRow(); _rows.add(n); return n; });
+                      row.name.text = f;
+                    })),
+            ]),
           const Divider(height: 32),
           for (var i = 0; i < _rows.length; i++)
             Row(children: [
