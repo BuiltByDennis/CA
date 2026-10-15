@@ -5,6 +5,7 @@ import '../../core/db/app_db.dart';
 import '../../core/models.dart';
 import '../../core/services.dart';
 import '../../core/staff/staff_logic.dart' as staff_logic;
+import 'restore_sign_in_screen.dart';
 import 'session_service.dart';
 
 /// Gate order: no profile -> create account; profile + locked -> PIN unlock;
@@ -106,6 +107,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           FilledButton(
               onPressed: _busy ? null : _create,
               child: const Text('Create account')),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const RestoreSignInScreen(freshPhone: true))),
+            child: const Text('Already have a CA account on another phone?\nSign in to restore it here'),
+          ),
         ]),
       );
 }
