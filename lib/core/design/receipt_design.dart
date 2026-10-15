@@ -67,4 +67,9 @@ class DesignStore {
 
   static Future<void> save(ReceiptDesign d) =>
       _storage.write(key: _key, value: jsonEncode(d.toJson()));
+
+  /// Raw JSON access for cloud backup/restore (Phase 8) — the stored
+  /// string is the backup unit, no re-serialisation drift.
+  static Future<String?> loadRaw() => _storage.read(key: _key);
+  static Future<void> saveRaw(String raw) => _storage.write(key: _key, value: raw);
 }
