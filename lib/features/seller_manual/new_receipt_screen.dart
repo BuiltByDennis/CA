@@ -208,7 +208,7 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
               ),
             ]),
             Wrap(spacing: 8, runSpacing: 4, children: [
-              for (final c in _catalogue)
+              for (final c in _catalogue.take(12))
                 ActionChip(
                   label: Text(c.unitPricePesewas > 0
                       ? '${c.name} · ${formatGhs(c.unitPricePesewas)}'
