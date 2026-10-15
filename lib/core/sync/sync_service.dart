@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -6,6 +7,10 @@ import '../db/app_db.dart';
 import '../receipt_signer.dart';
 import '../seller_key_service.dart';
 import '../services.dart';
+import '../account/account_service.dart';
+import '../account/key_wrap.dart';
+import '../account/restore_logic.dart';
+import '../design/receipt_design.dart';
 import '../referral/referral.dart';
 import '../supabase_config.dart';
 import '../tiers/tiers.dart';
@@ -75,8 +80,16 @@ class SyncService {
     }
     final report = SyncReport(true, 'Sync complete.');
     try {
-      // 1) Identity: anonymous link.
+      // 1) Identity: the cloud account when linked, else anonymous link.
+      // After an explicit cloud sign-out we must NOT silently mint a new
+      // anonymous identity (it would orphan the account's backups).
       var user = client.auth.currentUser;
+      if (user == null &&
+          await const FlutterSecureStorage().read(key: AccountService.signedOutKey) == '1') {
+        report.message =
+            'You are signed out of your cloud account. Sign in (Settings → Cloud Account) to sync — everything stays safe on this phone meanwhile.';
+        return report;
+      }
       if (user == null) {
         final res = await client.auth.signInAnonymously();
         user = res.user;
@@ -125,6 +138,10 @@ class SyncService {
 
       // 5) Phase 7 scale sync (best-effort): referrals, plan tier, MoMo.
       await _syncScale(client, profile);
+
+      // 6) Phase 8 account backup (best-effort): My Items price list +
+      // settings row (design, branches, staff, wrapped seller key).
+      await _syncAccountData(client, uid, profile);
 
       // 4) Registry for this device (as a buyer).
       final n = await refreshRegistry();
@@ -282,6 +299,101 @@ class SyncService {
           }
         }
       }
+    } catch (_) {}
+  }
+
+  /// Phase 8: push the rest of what a new phone needs — the catalogue
+  /// (only when it changed; stale server rows are deleted) and the
+  /// single account_backups row. Only fields this device actually has
+  /// are sent, so a fresh second phone can never erase richer data
+  /// backed up from the main phone.
+  static Future<void> _syncAccountData(
+      SupabaseClient client, String uid, ProfileRow? profile) async {
+    final db = AppServices.db;
+    const storage = FlutterSecureStorage();
+    try {
+      final items = await db.catalogueList();
+      final fp = catalogueFingerprint([
+        for (final i in items)
+          (id: i.id, name: i.name, price: i.unitPricePesewas, barcode: i.barcode)
+      ]);
+      if (fp != await storage.read(key: 'catalogue_backup_fp')) {
+        final remote = await client
+            .from('catalogue_backup')
+            .select('item_id')
+            .eq('owner_id', uid);
+        final remoteIds = {for (final r in remote) r['item_id'] as String};
+        final localIds = {for (final i in items) i.id};
+        final stale = remoteIds.difference(localIds).toList();
+        if (stale.isNotEmpty) {
+          await client
+              .from('catalogue_backup')
+              .delete()
+              .eq('owner_id', uid)
+              .inFilter('item_id', stale);
+        }
+        for (var s = 0; s < items.length; s += 400) {
+          final chunk = [
+            for (final i in items.skip(s).take(400))
+              {
+                'owner_id': uid,
+                'ca_business_id': profile?.businessId,
+                'item_id': i.id,
+                'name': i.name,
+                'unit_price_pesewas': i.unitPricePesewas,
+                'barcode': i.barcode,
+                'updated_at': DateTime.now().toUtc().toIso8601String(),
+              }
+          ];
+          if (chunk.isNotEmpty) {
+            await client
+                .from('catalogue_backup')
+                .upsert(chunk, onConflict: 'owner_id,item_id');
+          }
+        }
+        await storage.write(key: 'catalogue_backup_fp', value: fp);
+      }
+    } catch (_) {}
+    try {
+      final row = <String, dynamic>{
+        'owner_id': uid,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      if (profile?.businessId != null) row['ca_business_id'] = profile!.businessId;
+      final designRaw = await DesignStore.loadRaw();
+      if (designRaw != null) row['design_json'] = designRaw;
+      final branches = await db.branchList();
+      if (branches.isNotEmpty) {
+        row['branches_json'] = jsonEncode([
+          for (final b in branches) {'name': b.name, 'location': b.location}
+        ]);
+      }
+      final staffRows = await db.staffList();
+      if (staffRows.isNotEmpty) {
+        row['staff_json'] = jsonEncode([
+          for (final s in staffRows)
+            {
+              'name': s.name,
+              'phone': s.phone,
+              'role': s.role,
+              'pinSalt': s.pinSalt,
+              'pinHash': s.pinHash,
+              'active': s.active,
+              'createdAtUnix': s.createdAtUnix,
+            }
+        ]);
+      }
+      final blobRaw = await storage.read(key: AccountService.keyBlobKey);
+      if (blobRaw != null) {
+        try {
+          final blob =
+              WrappedKey.fromJson(jsonDecode(blobRaw) as Map<String, dynamic>);
+          row['key_salt'] = blob.salt;
+          row['key_nonce'] = blob.nonce;
+          row['key_ciphertext'] = blob.ciphertext;
+        } catch (_) {}
+      }
+      await client.from('account_backups').upsert(row);
     } catch (_) {}
   }
 }
