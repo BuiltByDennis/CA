@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../db/app_db.dart';
 import '../receipt_signer.dart';
 import '../seller_key_service.dart';
 import '../services.dart';
+import '../referral/referral.dart';
 import '../supabase_config.dart';
+import '../tiers/tiers.dart';
 import 'sync_payloads.dart';
 
 /// Supabase sync (Phase 3) — thin network layer over the pure builders in
@@ -120,6 +123,9 @@ class SyncService {
         }
       }
 
+      // 5) Phase 7 scale sync (best-effort): referrals, plan tier, MoMo.
+      await _syncScale(client, profile);
+
       // 4) Registry for this device (as a buyer).
       final n = await refreshRegistry();
       if (n >= 0) report.registryKeys = n;
@@ -221,5 +227,61 @@ class SyncService {
       }
     }
     return remoteBizId;
+  }
+
+  /// Phase 7 scale sync: record this business's referral, cache how many
+  /// sellers joined with MY code, pull the subscription tier, and apply
+  /// MoMo payment confirmations written by the momo-callback function.
+  /// Every step is independent and best-effort.
+  static Future<void> _syncScale(SupabaseClient client, ProfileRow? profile) async {
+    final caId = profile?.businessId;
+    if (caId == null) return;
+    final db = AppServices.db;
+
+    final ver = await db.getVerification();
+    final ref = ver?.referredBy;
+    if (ref != null && ref.isNotEmpty && ref != referralCodeFor(caId)) {
+      try {
+        await client.from('referrals').upsert({
+          'referrer_code': ref,
+          'referred_ca_business_id': caId,
+        }, onConflict: 'referred_ca_business_id');
+      } catch (_) {}
+    }
+    try {
+      final rows = await client
+          .from('referrals')
+          .select('id')
+          .eq('referrer_code', referralCodeFor(caId));
+      await const FlutterSecureStorage()
+          .write(key: 'referral_count', value: '${rows.length}');
+    } catch (_) {}
+    try {
+      final rows = await client
+          .from('subscriptions')
+          .select('plan, status')
+          .eq('ca_business_id', caId);
+      final pro = rows.any((r) => r['status'] == 'active' && r['plan'] == 'pro');
+      await TierStore.set(pro ? PlanTier.pro : PlanTier.free);
+    } catch (_) {}
+    try {
+      final rows = await client
+          .from('momo_payments')
+          .select('receipt_no, provider_txn_id')
+          .eq('ca_business_id', caId)
+          .eq('status', 'confirmed');
+      if (rows.isNotEmpty) {
+        final issued = await db.issuedReceipts();
+        for (final r in rows) {
+          final receiptNo = r['receipt_no'] as String?;
+          if (receiptNo == null) continue;
+          for (final m in issued.where((x) =>
+              x.receiptNo == receiptNo && x.paymentStatus == 'pending')) {
+            await db.setPaymentStatus(m.id, 'paid',
+                reference: r['provider_txn_id'] as String?);
+          }
+        }
+      }
+    } catch (_) {}
   }
 }
