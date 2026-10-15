@@ -4,6 +4,7 @@ import '../../core/catalogue/catalogue.dart';
 import '../../core/db/app_db.dart';
 import '../../core/models.dart';
 import '../../core/services.dart';
+import 'item_scan_screen.dart';
 
 /// My Items (v0.7.1): the seller's own product list — add, price, edit,
 /// remove. These are the one-tap items on the New Receipt screen, so a
@@ -38,6 +39,7 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
 
   Future<void> _edit(CatalogueItemRow? item) async {
     final name = TextEditingController(text: item?.name ?? '');
+    final barcode = TextEditingController(text: item?.barcode ?? '');
     final price = TextEditingController(
         text: item == null || item.unitPricePesewas == 0
             ? ''
@@ -51,6 +53,21 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
           TextField(controller: price,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(labelText: 'Usual price GH₵ (optional)')),
+          StatefulBuilder(builder: (context, setLocal) => TextField(
+              controller: barcode,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Barcode (optional)',
+                helperText: 'So Scan Items can add it automatically.',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.barcode_reader),
+                  onPressed: () async {
+                    final code = await Navigator.of(context).push<String>(
+                        MaterialPageRoute(builder: (_) => const ScanOneBarcodeScreen()));
+                    if (code != null) setLocal(() => barcode.text = code);
+                  },
+                ),
+              ))),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
@@ -64,6 +81,7 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
       id: item?.id ?? 'cat-${DateTime.now().millisecondsSinceEpoch}',
       name: name.text.trim(),
       unitPricePesewas: Value(pesewas),
+      barcode: Value(barcode.text.trim().isEmpty ? null : barcode.text.trim()),
       createdAtUnix: item?.createdAtUnix ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
     ));
     _refresh();
@@ -88,9 +106,10 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
                   Card(
                     child: ListTile(
                       title: Text(i.name),
-                      subtitle: Text(i.unitPricePesewas == 0
-                          ? 'No price set — you\'ll type it per sale'
-                          : formatGhs(i.unitPricePesewas)),
+                      subtitle: Text((i.unitPricePesewas == 0
+                              ? 'No price set — you\'ll type it per sale'
+                              : formatGhs(i.unitPricePesewas)) +
+                          (i.barcode != null ? ' · 🏷 ${i.barcode}' : '')),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
                         onPressed: () async {
