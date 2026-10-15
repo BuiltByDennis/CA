@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'cloud_account_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -33,6 +34,18 @@ class SettingsScreen extends StatelessWidget {
                 if (p.businessName != null)
                   ListTile(leading: const Icon(Icons.store), title: Text(p.businessName!), subtitle: const Text('Business')),
               ],
+              const Divider(height: 32),
+              const Text('Cloud Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 8),
+              const Text('Move phones without losing your business, history, '
+                  'price list or seller key.'),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.cloud_outlined),
+                label: const Text('Cloud account & restore'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const CloudAccountScreen())),
+              ),
               const Divider(height: 32),
               const Text('Danger zone',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red)),
