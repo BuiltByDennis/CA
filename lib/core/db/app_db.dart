@@ -37,6 +37,7 @@ class Receipts extends Table {
   TextColumn get paymentStatus => text().nullable()(); // Phase 5: 'pending' | 'paid' (MoMo confirmation flow); null = not tracked
   TextColumn get paymentReference => text().nullable()(); // Phase 5: MoMo transaction ID entered on confirmation
   TextColumn get buyerPhone => text().nullable()(); // Phase 5: buyer MoMo number (local only, not in payload)
+  TextColumn get branchName => text().nullable()(); // Phase 7: branch that issued it (local stamp, like cashierName)
   BoolColumn get verified => boolean().withDefault(const Constant(false))();
   @override
   Set<Column> get primaryKey => {id};
@@ -83,8 +84,35 @@ class BusinessVerification extends Table {
   TextColumn get note => text().nullable()();
   IntColumn get submittedAtUnix => integer().nullable()();
   TextColumn get remoteBusinessId => text().nullable()();
+  TextColumn get referredBy => text().nullable()(); // Phase 7: referral code of the seller who invited this business
   @override
   Set<Column> get primaryKey => {id};
+}
+
+/// Business branches (Phase 7, multi-branch). The branch a sale belongs to
+/// is stamped onto the receipt locally (branchName) — the frozen QR payload
+/// v1 is unchanged.
+@DataClassName('BranchRow')
+class Branches extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get location => text().nullable()();
+  IntColumn get createdAtUnix => integer()();
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Manual stock counts (Phase 7, inventory-lite). One row per item name:
+/// what the seller says they have. Sold quantities are computed from
+/// issued receipt items, so on-hand = counted - sold-since-count is shown
+/// by the inventory logic; this table stores the latest physical count.
+@DataClassName('StockCountRow')
+class StockCounts extends Table {
+  TextColumn get itemName => text()();
+  IntColumn get quantityOnHand => integer()();
+  IntColumn get updatedAtUnix => integer()();
+  @override
+  Set<Column> get primaryKey => {itemName};
 }
 
 @DataClassName('VerificationDocRow')
@@ -122,12 +150,12 @@ class SyncOutbox extends Table {
   IntColumn get attempts => integer().withDefault(const Constant(0))();
 }
 
-@DriftDatabase(tables: [Profiles, Receipts, ReceiptItems, SellerKeys, SyncOutbox, BusinessVerification, VerificationDocs, StaffMembers])
+@DriftDatabase(tables: [Profiles, Receipts, ReceiptItems, SellerKeys, SyncOutbox, BusinessVerification, VerificationDocs, StaffMembers, Branches, StockCounts])
 class AppDb extends _$AppDb {
   AppDb() : super(_open());
   AppDb.forTesting(super.executor);
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -147,6 +175,12 @@ class AppDb extends _$AppDb {
             await m.addColumn(receipts, receipts.paymentStatus);
             await m.addColumn(receipts, receipts.paymentReference);
             await m.addColumn(receipts, receipts.buyerPhone);
+          }
+          if (from < 6) {
+            await m.createTable(branches);
+            await m.createTable(stockCounts);
+            await m.addColumn(receipts, receipts.branchName);
+            await m.addColumn(businessVerification, businessVerification.referredBy);
           }
         },
       );
@@ -291,7 +325,30 @@ class AppDb extends _$AppDb {
       await delete(verificationDocs).go();
       await delete(businessVerification).go();
       await delete(staffMembers).go();
+      await delete(branches).go();
+      await delete(stockCounts).go();
       await delete(profiles).go();
     });
   }
+
+  // --- Phase 7: branches & stock ---
+
+  Future<List<BranchRow>> branchList() =>
+      (select(branches)..orderBy([(t) => OrderingTerm.asc(t.createdAtUnix)])).get();
+
+  Future<void> saveBranch(BranchesCompanion b) =>
+      into(branches).insertOnConflictUpdate(b);
+
+  Future<void> deleteBranch(String id) =>
+      (delete(branches)..where((t) => t.id.equals(id))).go();
+
+  Future<List<StockCountRow>> stockCountList() => select(stockCounts).get();
+
+  Future<void> setStockCount(String itemName, int qty) =>
+      into(stockCounts).insertOnConflictUpdate(StockCountsCompanion.insert(
+        itemName: itemName,
+        quantityOnHand: qty,
+        updatedAtUnix: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      ));
+
 }
