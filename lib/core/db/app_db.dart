@@ -159,6 +159,7 @@ class CatalogueItems extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   IntColumn get unitPricePesewas => integer().withDefault(const Constant(0))();
+  TextColumn get barcode => text().nullable()(); // v0.7.2: product barcode (EAN/UPC) for till-style scanning
   IntColumn get createdAtUnix => integer()();
   @override
   Set<Column> get primaryKey => {id};
@@ -169,7 +170,7 @@ class AppDb extends _$AppDb {
   AppDb() : super(_open());
   AppDb.forTesting(super.executor);
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -192,6 +193,9 @@ class AppDb extends _$AppDb {
           }
           if (from < 7) {
             await m.createTable(catalogueItems);
+          }
+          if (from < 8) {
+            await m.addColumn(catalogueItems, catalogueItems.barcode);
           }
           if (from < 6) {
             await m.createTable(branches);
@@ -380,4 +384,8 @@ class AppDb extends _$AppDb {
 
   Future<void> deleteCatalogueItem(String id) =>
       (delete(catalogueItems)..where((t) => t.id.equals(id))).go();
+
+  Future<CatalogueItemRow?> catalogueItemByBarcode(String barcode) =>
+      (select(catalogueItems)..where((t) => t.barcode.equals(barcode)))
+          .getSingleOrNull();
 }
