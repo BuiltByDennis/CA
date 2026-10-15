@@ -3,14 +3,17 @@ name: Build iOS (unsigned check)
 # Proves the CA app compiles for iOS. The artifact is an UNSIGNED .app —
 # it cannot be installed on a normal iPhone until the project is signed
 # with an Apple Developer account (then switch to an IPA export flow).
+#
+# MANUAL ONLY (trimmed 2026-10-15): macOS runners bill at 10x the Linux
+# rate, so this must never build on push. To run it: GitHub → CA repo →
+# Actions → "Build iOS (unsigned check)" → Run workflow.
 on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'ios/**'
-      - 'lib/**'
-      - 'pubspec.yaml'
+  workflow_dispatch: {}
+
+# Pressing Run twice never burns double minutes: the older run cancels.
+concurrency:
+  group: build-ios
+  cancel-in-progress: true
 
 jobs:
   build-ios:
