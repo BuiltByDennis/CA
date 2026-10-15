@@ -8,6 +8,8 @@ import '../../core/models.dart';
 import '../../core/seller_key_service.dart';
 import '../../core/branches/branch_logic.dart';
 import '../../core/catalogue/catalogue.dart';
+import '../../core/catalogue/scan_merge.dart';
+import 'item_scan_screen.dart';
 import '../../core/db/app_db.dart';
 import '../../core/momo/momo.dart';
 import '../../core/services.dart';
@@ -159,6 +161,36 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
     setState(() => _issuing = false);
   }
 
+
+  /// Till-style barcode entry (v0.7.2): scan products, they land here as
+  /// receipt lines — same name merges quantities.
+  Future<void> _scanItems() async {
+    final scanned = await Navigator.of(context).push<List<ScannedEntry>>(
+        MaterialPageRoute(builder: (_) => const ItemScanScreen()));
+    if (scanned == null || scanned.isEmpty) return;
+    setState(() {
+      for (final e in scanned) {
+        final existing = _rows.where(
+            (r) => r.name.text.trim().toLowerCase() == e.name.toLowerCase());
+        if (existing.isNotEmpty) {
+          final row = existing.first;
+          row.qty.text = '${(int.tryParse(row.qty.text) ?? 0) + e.qty}';
+          if (row.price.text.isEmpty && e.unitPricePesewas > 0) {
+            row.price.text = (e.unitPricePesewas / 100).toStringAsFixed(2);
+          }
+          continue;
+        }
+        final row = _rows.firstWhere((r) => r.name.text.isEmpty,
+            orElse: () { final n = _ItemRow(); _rows.add(n); return n; });
+        row.name.text = e.name;
+        row.qty.text = '${e.qty}';
+        if (e.unitPricePesewas > 0) {
+          row.price.text = (e.unitPricePesewas / 100).toStringAsFixed(2);
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('New Receipt')),
@@ -220,10 +252,17 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
                   icon: const Icon(Icons.remove_circle_outline),
                   onPressed: _rows.length == 1 ? null : () => setState(() => _rows.removeAt(i).dispose())),
             ]),
-          TextButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('Add item'),
-              onPressed: () => setState(() => _rows.add(_ItemRow()))),
+          Row(children: [
+            TextButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('Add item'),
+                onPressed: () => setState(() => _rows.add(_ItemRow()))),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+                icon: const Icon(Icons.barcode_reader),
+                label: const Text('Scan items'),
+                onPressed: _scanItems),
+          ]),
           SwitchListTile(
             title: const Text('Apply tax presets (VAT / NHIL / GETFund)'),
             subtitle: const Text('Preset rates — confirm with your accountant.'),
