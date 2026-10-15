@@ -1,11 +1,19 @@
 name: Build CA APK
 
 # Builds an installable Android APK and stores it as a downloadable
-# artifact: GitHub → Actions → this workflow → latest run → Artifacts.
+# artifact. MANUAL ONLY (since 2026-10-15): pushing code no longer
+# triggers a build, so the free Actions minutes are spent only when a
+# new APK is actually wanted.
+#
+# To build: GitHub → CA repo → Actions → "Build CA APK" → Run workflow
+# → Run workflow. The APK appears under that run's Artifacts.
 on:
-  push:
-    branches: [main]
   workflow_dispatch: {}
+
+# Pressing Run twice never burns double minutes: the older run cancels.
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
 
 jobs:
   build:
