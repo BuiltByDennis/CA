@@ -6,6 +6,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/db/app_db.dart';
 import '../../core/models.dart';
 import '../../core/seller_key_service.dart';
+import '../../core/branches/branch_logic.dart';
+import '../../core/momo/momo.dart';
 import '../../core/services.dart';
 import '../auth/session_service.dart';
 import '../../core/tax_presets.dart';
@@ -120,6 +122,7 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
     final qr = await signer.signReceipt(receipt);
     final sellerVerified =
         (await AppServices.db.getVerification())?.status == 'verified';
+    final branch = await BranchService.activeBranchName();
     await AppServices.db.saveReceipt(
       ReceiptsCompanion.insert(
         id: receipt.id, receiptNo: receipt.receiptNo, sellerBusinessId: businessId,
@@ -129,6 +132,10 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
         source: 'manual', qrText: qr, direction: 'issued',
         cashierName: Value(SessionService.currentUserName),
         paymentStatus: Value(_payment == 'MoMo' && !_momoReceived ? 'pending' : 'paid'),
+        paymentReference: Value(_payment == 'MoMo' && !_momoReceived
+            ? momoRequestReference(businessId: businessId, receiptNo: receipt.receiptNo)
+            : null),
+        branchName: Value(branch),
         buyerPhone: Value(_buyerPhone.text.trim().isEmpty ? null : _buyerPhone.text.trim()),
         verified: const Value(true),
       ),
