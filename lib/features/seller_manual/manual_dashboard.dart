@@ -78,6 +78,8 @@ class ManualDashboard extends StatelessWidget {
                 onPressed: () => context.push('/seller/branches')),
             OutlinedButton.icon(icon: const Icon(Icons.inventory_2), label: const Text('Stock'),
                 onPressed: () => context.push('/seller/inventory')),
+            OutlinedButton.icon(icon: const Icon(Icons.checklist), label: const Text('My Items'),
+                onPressed: () => context.push('/seller-manual/items')),
             OutlinedButton.icon(icon: const Icon(Icons.group_add), label: const Text('Refer'),
                 onPressed: () => context.push('/seller/referrals')),
             OutlinedButton.icon(icon: const Icon(Icons.workspace_premium), label: const Text('Plans'),
