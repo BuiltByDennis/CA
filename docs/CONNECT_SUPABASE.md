@@ -57,3 +57,17 @@ verification, history — runs from the phone's local database.
 Run `supabase/schema_v3_phase6.sql` (feedback table: users can insert,
 admins can read). Feedback from the app's Help & Feedback screen lands
 there; read it in the Table Editor or SQL Editor.
+
+## Phase 8 addition (cloud accounts + cross-device restore)
+1. **Run the v5 SQL**: SQL Editor → paste `supabase/schema_v5_accounts.sql`
+   → Run. It adds `catalogue_backup` (My Items price lists) and
+   `account_backups` (receipt design, branches, staff PIN hashes, and the
+   seller key stored AES-GCM-encrypted under the owner's password).
+2. **Turn OFF "Confirm email"** (Authentication → Providers → Email) for
+   the pilot, so creating a cloud account works instantly. Owners create
+   their account in Settings → Cloud Account; the device's anonymous
+   identity is upgraded in place (same user id — old backups stay
+   attached). On a new phone: "Sign in to restore" on the create-account
+   screen brings everything back.
+3. Email sign-ups must stay enabled (Authentication → Providers → Email →
+   "Allow new users to sign up" ON — it is by default).
