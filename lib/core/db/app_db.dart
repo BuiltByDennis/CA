@@ -150,12 +150,26 @@ class SyncOutbox extends Table {
   IntColumn get attempts => integer().withDefault(const Constant(0))();
 }
 
-@DriftDatabase(tables: [Profiles, Receipts, ReceiptItems, SellerKeys, SyncOutbox, BusinessVerification, VerificationDocs, StaffMembers, Branches, StockCounts])
+/// The seller's own item catalogue (v0.7.1, 'My Items') — the products
+/// they sell, with their usual prices, for one-tap receipt entry.
+/// Customisable: add, edit, delete. Seeded once with common Ghana
+/// provisions staples (price 0 until the seller sets theirs).
+@DataClassName('CatalogueItemRow')
+class CatalogueItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  IntColumn get unitPricePesewas => integer().withDefault(const Constant(0))();
+  IntColumn get createdAtUnix => integer()();
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Profiles, Receipts, ReceiptItems, SellerKeys, SyncOutbox, BusinessVerification, VerificationDocs, StaffMembers, Branches, StockCounts, CatalogueItems])
 class AppDb extends _$AppDb {
   AppDb() : super(_open());
   AppDb.forTesting(super.executor);
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -175,6 +189,9 @@ class AppDb extends _$AppDb {
             await m.addColumn(receipts, receipts.paymentStatus);
             await m.addColumn(receipts, receipts.paymentReference);
             await m.addColumn(receipts, receipts.buyerPhone);
+          }
+          if (from < 7) {
+            await m.createTable(catalogueItems);
           }
           if (from < 6) {
             await m.createTable(branches);
@@ -327,6 +344,7 @@ class AppDb extends _$AppDb {
       await delete(staffMembers).go();
       await delete(branches).go();
       await delete(stockCounts).go();
+      await delete(catalogueItems).go();
       await delete(profiles).go();
     });
   }
@@ -351,4 +369,15 @@ class AppDb extends _$AppDb {
         updatedAtUnix: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       ));
 
+
+  // --- v0.7.1: item catalogue ---
+
+  Future<List<CatalogueItemRow>> catalogueList() =>
+      (select(catalogueItems)..orderBy([(t) => OrderingTerm.asc(t.name)])).get();
+
+  Future<void> saveCatalogueItem(CatalogueItemsCompanion c) =>
+      into(catalogueItems).insertOnConflictUpdate(c);
+
+  Future<void> deleteCatalogueItem(String id) =>
+      (delete(catalogueItems)..where((t) => t.id.equals(id))).go();
 }
