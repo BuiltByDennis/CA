@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/db/app_db.dart';
 import '../../core/services.dart';
 import '../../core/staff/staff_logic.dart' as staff_logic;
+import '../../core/tiers/tiers.dart';
 import '../auth/session_service.dart';
 
 /// Staff management (Phase 4) — owner only. Add people who work on this
@@ -67,6 +68,16 @@ class _StaffScreenState extends State<StaffScreen> {
       ),
     );
     if (ok != true) return;
+    final tier = await TierStore.current();
+    final activeCount =
+        (await AppServices.db.staffList()).where((s) => s.active).length;
+    if (!PlanLimits.canAddStaff(tier, activeCount)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Free plan allows 3 staff. Pro unlocks unlimited staff — see Plans on your dashboard.')));
+      }
+      return;
+    }
     if (name.text.trim().isEmpty || pin.text.trim().length < 4) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
