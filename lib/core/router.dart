@@ -14,6 +14,10 @@ import '../features/analytics/analytics_screen.dart';
 import '../features/staff/staff_screen.dart';
 import '../features/tax/tax_report_screen.dart';
 import '../features/help/help_feedback_screen.dart';
+import '../features/scale/branches_screen.dart';
+import '../features/scale/inventory_screen.dart';
+import '../features/scale/plans_screen.dart';
+import '../features/scale/referrals_screen.dart';
 import '../features/settings/settings_screen.dart';
 
 final caRouter = GoRouter(routes: [
@@ -37,4 +41,8 @@ final caRouter = GoRouter(routes: [
   GoRoute(path: '/seller/tax', builder: (context, state) => const TaxReportScreen()),
   GoRoute(path: '/help', builder: (context, state) => const HelpFeedbackScreen()),
   GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
+  GoRoute(path: '/seller/branches', builder: (context, state) => const BranchesScreen()),
+  GoRoute(path: '/seller/inventory', builder: (context, state) => const InventoryScreen()),
+  GoRoute(path: '/seller/referrals', builder: (context, state) => const ReferralsScreen()),
+  GoRoute(path: '/seller/plans', builder: (context, state) => const PlansScreen()),
 ]);
