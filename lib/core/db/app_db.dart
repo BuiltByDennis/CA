@@ -233,6 +233,13 @@ class AppDb extends _$AppDb {
     ));
   }
 
+  /// Restore path (Phase 8): insert a receipt WITHOUT queueing a cloud
+  /// backup — it came FROM the backup.
+  Future<void> saveReceiptRestored(ReceiptsCompanion receipt, List<ReceiptItemsCompanion> items) async {
+    await into(receipts).insertOnConflictUpdate(receipt);
+    await batch((b) => b.insertAll(receiptItems, items));
+  }
+
   Future<ReceiptRow?> receiptById(String id) =>
       (select(receipts)..where((t) => t.id.equals(id))).getSingleOrNull();
 
