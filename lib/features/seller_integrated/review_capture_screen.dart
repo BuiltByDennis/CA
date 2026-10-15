@@ -5,6 +5,7 @@ import '../../core/db/app_db.dart';
 import '../../core/models.dart';
 import '../../core/ocr/receipt_parser.dart';
 import '../../core/seller_key_service.dart';
+import '../../core/branches/branch_logic.dart';
 import '../../core/services.dart';
 import '../auth/session_service.dart';
 import '../seller_manual/new_receipt_screen.dart' show IssuedQrScreen;
@@ -124,6 +125,7 @@ class _ReviewCaptureScreenState extends State<ReviewCaptureScreen> {
     final qr = await signer.signReceipt(receipt);
     final sellerVerified =
         (await AppServices.db.getVerification())?.status == 'verified';
+    final branch = await BranchService.activeBranchName();
     await AppServices.db.saveReceipt(
       ReceiptsCompanion.insert(
         id: receipt.id, receiptNo: receipt.receiptNo, sellerBusinessId: businessId,
@@ -132,6 +134,7 @@ class _ReviewCaptureScreenState extends State<ReviewCaptureScreen> {
         issuedAtUnix: receipt.issuedAt.millisecondsSinceEpoch ~/ 1000,
         source: 'captured', qrText: qr, direction: 'issued',
         cashierName: Value(SessionService.currentUserName),
+        branchName: Value(branch),
         verified: const Value(true),
         originalReceiptNo:
             Value(_originalNo.text.trim().isEmpty ? null : _originalNo.text.trim()),
