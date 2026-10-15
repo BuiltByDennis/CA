@@ -14,6 +14,7 @@ class AnalyticsScreen extends StatefulWidget {
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   int _days = 7;
+  String _branch = 'All branches';
   late final Future<List<AnalyticsReceipt>> _data = _load();
 
   Future<List<AnalyticsReceipt>> _load() async {
@@ -34,6 +35,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               buyerName: r.buyerName,
               paymentMethod: r.paymentMethod,
               cashierName: r.cashierName,
+              branchName: r.branchName,
               items: byReceipt[r.id] ?? const [],
             ))
         .toList();
@@ -59,9 +61,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final s = summarize(snap.data!, now: DateTime.now(), days: _days);
+          final all = snap.data!;
+          final branchNames = <String>{
+            for (final r in all) r.branchName ?? 'Main'
+          }.toList()
+            ..sort();
+          final filtered = _branch == 'All branches'
+              ? all
+              : all.where((r) => (r.branchName ?? 'Main') == _branch).toList();
+          final s = summarize(filtered, now: DateTime.now(), days: _days);
           final maxDaily = s.dailyTotals.fold(0, (m, d) => d.totalPesewas > m ? d.totalPesewas : m);
           return ListView(padding: const EdgeInsets.all(16), children: [
+            if (branchNames.length > 1) ...[
+              DropdownButtonFormField<String>(
+                initialValue: _branch,
+                decoration: const InputDecoration(labelText: 'Branch'),
+                items: [
+                  const DropdownMenuItem(value: 'All branches', child: Text('All branches')),
+                  for (final b in branchNames)
+                    DropdownMenuItem(value: b, child: Text(b)),
+                ],
+                onChanged: (v) => setState(() => _branch = v ?? 'All branches'),
+              ),
+              const SizedBox(height: 12),
+            ],
             SegmentedButton<int>(
               segments: const [
                 ButtonSegment(value: 1, label: Text('Today')),
