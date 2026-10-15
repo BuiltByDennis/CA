@@ -11,9 +11,12 @@ docs/PILOT_KIT.md (recruiting + setup day + week-1 observations).
 - [x] APK build pipeline (GitHub Actions) green; app downloaded
 
 ## A. Server — finish (5 minutes, at a computer)
-- [ ] Run `supabase/schema_v4_phase7.sql` in the SQL Editor (referrals,
-      subscriptions, MoMo payments tables)
-- [ ] Confirm **Anonymous sign-ins** are ON (Authentication → Providers)
+- [x] Run `supabase/schema_v4_phase7.sql` (done 2026-10-15)
+- [ ] Run `supabase/schema_v5_accounts.sql` in the SQL Editor (cloud
+      account backups: price lists + restore data)
+- [ ] Turn OFF **Confirm email** (Authentication → Providers → Email)
+      so owners can create cloud accounts instantly
+- [x] Confirm **Anonymous sign-ins** are ON (done 2026-10-15)
 - [ ] Confirm the admins row exists:
       `select * from admins;` — if empty, insert your Auth user's UUID:
       `insert into admins (user_id) values ('THE-UUID');`
