@@ -182,82 +182,97 @@ class _ItemScanScreenState extends State<ItemScanScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Scan items')),
-        body: Column(children: [
-          Expanded(
-            flex: 5,
-            child: Stack(children: [
-              MobileScanner(controller: _controller, onDetect: _onDetect),
-              const Positioned.fill(child: ScanViewfinder()),
-              if (_lastAddedName != null)
-                Positioned(
-                  left: 16, right: 16, bottom: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                        color: Colors.green.shade700,
-                        borderRadius: BorderRadius.circular(20)),
-                    child: Text('Added: $_lastAddedName',
-                        style: const TextStyle(color: Colors.white),
-                        textAlign: TextAlign.center),
-                  ),
-                ),
-            ]),
-          ),
-          Expanded(
-            flex: 4,
-            child: Column(children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 8, 0),
-                child: Row(children: [
-                  Expanded(child: Text('Scanned (${_merged.length})',
-                      style: const TextStyle(fontWeight: FontWeight.bold))),
-                  TextButton.icon(
-                    icon: const Icon(Icons.keyboard),
-                    label: const Text('Type code'),
-                    onPressed: _typeCode,
-                  ),
-                ]),
+        // Layout fixed after Dennis's device report (words rendering
+        // vertically in the squeezed half-screen layout): the camera now
+        // fills the screen exactly like the buyer scanner — which
+        // displays correctly — and the scanned list rides as a bottom
+        // sheet over it.
+        body: Stack(children: [
+          Positioned.fill(
+              child: MobileScanner(controller: _controller, onDetect: _onDetect)),
+          const Positioned.fill(child: ScanViewfinder()),
+          if (_lastAddedName != null)
+            Positioned(
+              left: 16, right: 16, top: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                    color: Colors.green.shade700,
+                    borderRadius: BorderRadius.circular(20)),
+                child: Text('Added: $_lastAddedName',
+                    style: const TextStyle(color: Colors.white),
+                    textAlign: TextAlign.center),
               ),
-              Expanded(
-                child: _merged.isEmpty
-                    ? const Center(child: Text('Point at a product barcode. Each scan adds one.'))
-                    : ListView(
-                        children: [
-                          for (final e in _merged)
-                            ListTile(
-                              dense: true,
-                              title: Text(e.name),
-                              subtitle: Text('${e.qty} × ${formatGhs(e.unitPricePesewas)}'),
-                              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                                Text(formatGhs(e.qty * e.unitPricePesewas),
-                                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                                IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                  onPressed: () => setState(() {
-                                    final i = _adds.lastIndexWhere((a) =>
-                                        a.name.toLowerCase() == e.name.toLowerCase());
-                                    if (i >= 0) _adds.removeAt(i);
-                                  }),
-                                ),
-                              ]),
-                            ),
-                        ],
+            ),
+          Positioned(
+            left: 0, right: 0, bottom: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                boxShadow: [BoxShadow(blurRadius: 12, color: Colors.black26)],
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.42),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 8, 0),
+                    child: Row(children: [
+                      Expanded(child: Text('Scanned (${_merged.length})',
+                          style: const TextStyle(fontWeight: FontWeight.bold))),
+                      TextButton.icon(
+                        icon: const Icon(Icons.keyboard),
+                        label: const Text('Type code'),
+                        onPressed: _typeCode,
                       ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(children: [
-                  Expanded(child: Text('Total: ${formatGhs(_total)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-                  FilledButton(
-                    onPressed: _merged.isEmpty
-                        ? null
-                        : () => Navigator.of(context).pop(_merged),
-                    child: const Text('Add to receipt'),
+                    ]),
+                  ),
+                  Flexible(
+                    child: _merged.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Text('Point at a product barcode. Each scan adds one.'))
+                        : ListView(
+                            shrinkWrap: true,
+                            children: [
+                              for (final e in _merged)
+                                ListTile(
+                                  dense: true,
+                                  title: Text(e.name),
+                                  subtitle: Text('${e.qty} × ${formatGhs(e.unitPricePesewas)}'),
+                                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Text(formatGhs(e.qty * e.unitPricePesewas),
+                                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_circle_outline),
+                                      onPressed: () => setState(() {
+                                        final i = _adds.lastIndexWhere((a) =>
+                                            a.name.toLowerCase() == e.name.toLowerCase());
+                                        if (i >= 0) _adds.removeAt(i);
+                                      }),
+                                    ),
+                                  ]),
+                                ),
+                            ],
+                          ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(children: [
+                      Expanded(child: Text('Total: ${formatGhs(_total)}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                      FilledButton(
+                        onPressed: _merged.isEmpty
+                            ? null
+                            : () => Navigator.of(context).pop(_merged),
+                        child: const Text('Add to receipt'),
+                      ),
+                    ]),
                   ),
                 ]),
               ),
-            ]),
+            ),
           ),
         ]),
       );
