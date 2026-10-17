@@ -24,4 +24,41 @@ void main() {
       expect(merged.map((e) => e.name), ['Rice', 'Oil']);
     });
   });
+
+  group('merge into receipt lines (Dennis report, v0.8.2)', () {
+    test('same item scanned again in a later session bumps the quantity', () {
+      final lines = mergeIntoReceiptLines(
+        const [ReceiptLineData('Milo 400g', 1, 4500)],
+        const [ScannedEntry('Milo 400g', 1, 4500)],
+      );
+      expect(lines.length, 1);
+      expect(lines.single.qty, 2);
+      expect(lines.single.unitPricePesewas, 4500);
+    });
+    test('first scan lands as a new line with name, qty and price', () {
+      final lines = mergeIntoReceiptLines(
+        const [],
+        const [ScannedEntry('Ideal Milk', 3, 1250)],
+      );
+      expect(lines.single.name, 'Ideal Milk');
+      expect(lines.single.qty, 3);
+      expect(lines.single.unitPricePesewas, 1250);
+    });
+    test('matching ignores case; scanned price fills a priceless line', () {
+      final lines = mergeIntoReceiptLines(
+        const [ReceiptLineData('milo 400g', 1, 0)],
+        const [ScannedEntry('Milo 400g', 2, 4500)],
+      );
+      expect(lines.single.qty, 3);
+      expect(lines.single.unitPricePesewas, 4500);
+    });
+    test('different items append in order', () {
+      final lines = mergeIntoReceiptLines(
+        const [ReceiptLineData('Rice', 1, 5000)],
+        const [ScannedEntry('Oil', 1, 3000), ScannedEntry('Rice', 1, 5000)],
+      );
+      expect(lines.map((l) => l.name), ['Rice', 'Oil']);
+      expect(lines.first.qty, 2);
+    });
+  });
 }
