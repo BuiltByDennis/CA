@@ -164,30 +164,46 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
 
   /// Till-style barcode entry (v0.7.2): scan products, they land here as
   /// receipt lines — same name merges quantities.
+  Future<void> _reloadCatalogue() async {
+    final items = await AppServices.db.catalogueList();
+    if (mounted) setState(() => _catalogue = items);
+  }
+
+  /// Till-style barcode entry (v0.7.2; merge rebuilt v0.8.2 after
+  /// Dennis's report that re-scanning a product didn't show up):
+  /// snapshot the form's lines as data, merge purely (same name gains
+  /// quantity), write the lines back, and refresh the quick-pick list
+  /// so a product named during scanning appears there with its price.
   Future<void> _scanItems() async {
     final scanned = await Navigator.of(context).push<List<ScannedEntry>>(
         MaterialPageRoute(builder: (_) => const ItemScanScreen()));
+    await _reloadCatalogue();
     if (scanned == null || scanned.isEmpty) return;
+    final current = <ReceiptLineData>[
+      for (final r in _rows)
+        if (r.name.text.trim().isNotEmpty)
+          ReceiptLineData(
+            r.name.text.trim(),
+            int.tryParse(r.qty.text) ?? 1,
+            ((double.tryParse(r.price.text) ?? 0) * 100).round(),
+          )
+    ];
+    final merged = mergeIntoReceiptLines(current, scanned);
     setState(() {
-      for (final e in scanned) {
-        final existing = _rows.where(
-            (r) => r.name.text.trim().toLowerCase() == e.name.toLowerCase());
-        if (existing.isNotEmpty) {
-          final row = existing.first;
-          row.qty.text = '${(int.tryParse(row.qty.text) ?? 0) + e.qty}';
-          if (row.price.text.isEmpty && e.unitPricePesewas > 0) {
-            row.price.text = (e.unitPricePesewas / 100).toStringAsFixed(2);
-          }
-          continue;
-        }
-        final row = _rows.firstWhere((r) => r.name.text.isEmpty,
-            orElse: () { final n = _ItemRow(); _rows.add(n); return n; });
-        row.name.text = e.name;
-        row.qty.text = '${e.qty}';
-        if (e.unitPricePesewas > 0) {
-          row.price.text = (e.unitPricePesewas / 100).toStringAsFixed(2);
-        }
+      for (final r in _rows) {
+        r.dispose();
       }
+      _rows
+        ..clear()
+        ..addAll([
+          for (final l in merged)
+            _ItemRow()
+              ..name.text = l.name
+              ..qty.text = '${l.qty}'
+              ..price.text =
+                  l.unitPricePesewas > 0 ? (l.unitPricePesewas / 100).toStringAsFixed(2) : '',
+          _ItemRow(),
+        ]);
     });
   }
 
@@ -203,7 +219,10 @@ class _NewReceiptScreenState extends State<NewReceiptScreen> {
               const Expanded(child: Text('My items — tap to add',
                   style: TextStyle(fontWeight: FontWeight.w600))),
               TextButton(
-                onPressed: () => context.push('/seller-manual/items'),
+                onPressed: () async {
+                  await context.push('/seller-manual/items');
+                  _reloadCatalogue();
+                },
                 child: const Text('Customise'),
               ),
             ]),
