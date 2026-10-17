@@ -326,6 +326,9 @@ class AppDb extends _$AppDb {
   Future<List<ReceiptRow>> issuedReceipts() =>
       (select(receipts)..where((t) => t.direction.equals('issued'))).get();
 
+  Future<List<ReceiptRow>> savedReceipts() =>
+      (select(receipts)..where((t) => t.direction.equals('saved'))).get();
+
   Future<List<ReceiptItemRow>> allReceiptItems() => select(receiptItems).get();
 
   Future<void> setPaymentStatus(String id, String status, {String? reference}) async {
